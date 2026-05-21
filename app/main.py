@@ -1,6 +1,34 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database.connection import (
+    engine,
+    Base
+)
+
+# =========================
+# IMPORT MODELS
+# =========================
+from app.models.user_model import User
+from app.models.customer_model import Customer
+from app.models.supplier_model import Supplier
+from app.models.material_model import Material
+from app.models.inventory_model import InventoryMovement
+from app.models.sales_order_model import (
+    SalesOrder,
+    SalesOrderItem
+)
+from app.models.production_model import (
+    ProductionOrder,
+    ProductionProgress
+)
+from app.models.cash_model import CashTransaction
+from app.models.employee_model import Employee
+from app.models.payroll_model import (
+    Attendance,
+    Payroll
+)
+
 # =========================
 # ROUTES
 # =========================
@@ -16,6 +44,9 @@ from app.api.routes.payroll_route import router as payroll_router
 from app.api.routes.dashboard_route import router as dashboard_router
 
 
+Base.metadata.create_all(bind=engine)
+
+
 app = FastAPI(
     title="ERP SYSTEM",
     version="1.0.0"
@@ -29,9 +60,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# =========================
-# REGISTER ROUTES
-# =========================
 app.include_router(auth_router)
 app.include_router(customer_router)
 app.include_router(supplier_router)
