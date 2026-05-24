@@ -58,7 +58,7 @@ export default function CreateProductionOrderPage() {
       });
 
       alert("PO berhasil dibuat");
-      router.push("/production-orders");
+      router.push("/purchase-orders");
     } catch (error) {
       alert(error instanceof Error ? error.message : "Gagal membuat PO");
     } finally {
@@ -224,7 +224,7 @@ export default function CreateProductionOrderPage() {
 
           <button
             type="button"
-            onClick={() => router.push("/production-orders")}
+            onClick={() => router.push("/purchase-orders")}
             className="rounded-lg border px-5 py-2 hover:bg-gray-50"
           >
             Batal
