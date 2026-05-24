@@ -6,7 +6,6 @@ from pydantic import BaseModel
 
 
 class Sales103Base(BaseModel):
-    # Kolom sesuai sheet Excel 103
     tgl: Optional[date] = None
     no_ord: Optional[str] = None
     no_invoice: Optional[str] = None
@@ -19,7 +18,12 @@ class Sales103Base(BaseModel):
     harga: Optional[Decimal] = None
 
     dpp: Optional[Decimal] = None
+
+    # PPN fleksibel
+    ppn_rate: Optional[Decimal] = Decimal("11")
+    ppn_adjustment: Optional[Decimal] = Decimal("0")
     ppn_keluar: Optional[Decimal] = None
+
     piutang_dagang: Optional[Decimal] = None
 
     production_order_id: Optional[int] = None
@@ -31,7 +35,6 @@ class Sales103Create(Sales103Base):
 
 
 class Sales103Update(BaseModel):
-    # Dibuat optional semua supaya update tidak wajib kirim semua field
     tgl: Optional[date] = None
     no_ord: Optional[str] = None
     no_invoice: Optional[str] = None
@@ -44,7 +47,12 @@ class Sales103Update(BaseModel):
     harga: Optional[Decimal] = None
 
     dpp: Optional[Decimal] = None
+
+    # PPN fleksibel
+    ppn_rate: Optional[Decimal] = None
+    ppn_adjustment: Optional[Decimal] = None
     ppn_keluar: Optional[Decimal] = None
+
     piutang_dagang: Optional[Decimal] = None
 
     production_order_id: Optional[int] = None

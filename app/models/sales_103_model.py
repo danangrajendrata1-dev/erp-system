@@ -22,11 +22,15 @@ class Sales103(Base):
     harga = Column(Numeric(18, 2), nullable=True)
 
     dpp = Column(Numeric(18, 2), nullable=True)
+
+    # PPN fleksibel
+    ppn_rate = Column(Numeric(5, 2), nullable=True, default=11)
+    ppn_adjustment = Column(Numeric(18, 2), nullable=True, default=0)
     ppn_keluar = Column(Numeric(18, 2), nullable=True)
+
     piutang_dagang = Column(Numeric(18, 2), nullable=True)
 
     production_order_id = Column(Integer, nullable=True)
-
     keterangan = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

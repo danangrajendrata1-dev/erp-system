@@ -13,7 +13,11 @@ export interface Sales103 {
   harga: string | number | null;
 
   dpp: string | number | null;
+
+  ppn_rate: string | number | null;
+  ppn_adjustment: string | number | null;
   ppn_keluar: string | number | null;
+
   piutang_dagang: string | number | null;
 
   production_order_id: number | null;
@@ -36,7 +40,11 @@ export interface Sales103Create {
   harga?: number | null;
 
   dpp?: number | null;
+
+  ppn_rate?: number | null;
+  ppn_adjustment?: number | null;
   ppn_keluar?: number | null;
+
   piutang_dagang?: number | null;
 
   production_order_id?: number | null;

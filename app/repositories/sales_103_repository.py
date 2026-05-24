@@ -30,7 +30,7 @@ class Sales103Repository:
         if not sales_103:
             return None
 
-        update_data = data.model_dump(exclude_unset=True)
+        update_data = data.model_dump()
 
         for field, value in update_data.items():
             setattr(sales_103, field, value)

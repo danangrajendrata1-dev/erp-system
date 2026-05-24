@@ -1,10 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createSales103 } from "@/services/sales103";
 import { Sales103Create } from "@/types/sales103";
+
+function formatNumber(value: number | null) {
+  if (value === null || Number.isNaN(value)) return "";
+
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
 
 export default function CreateSales103Page() {
   const router = useRouter();
@@ -28,18 +37,27 @@ export default function CreateSales103Page() {
 
   const [loading, setLoading] = useState(false);
 
+  const preview = useMemo(() => {
+    const jml = Number(form.jml || 0);
+    const harga = Number(form.harga || 0);
+
+    const dpp = jml * harga;
+    const ppnKeluar = dpp * 0.11;
+    const piutangDagang = dpp + ppnKeluar;
+
+    return {
+      dpp,
+      ppn_keluar: ppnKeluar,
+      piutang_dagang: piutangDagang,
+    };
+  }, [form.jml, form.harga]);
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
     const { name, value } = e.target;
 
-    const numberFields = [
-      "jml",
-      "harga",
-      "dpp",
-      "ppn_keluar",
-      "piutang_dagang",
-    ];
+    const numberFields = ["jml", "harga"];
 
     if (numberFields.includes(name)) {
       setForm((prev) => ({
@@ -72,10 +90,10 @@ export default function CreateSales103Page() {
         sat: form.sat || null,
         keterangan: form.keterangan || null,
 
-        // Kosongkan supaya backend menghitung otomatis
-        dpp: form.dpp || null,
-        ppn_keluar: form.ppn_keluar || null,
-        piutang_dagang: form.piutang_dagang || null,
+        // Backend tetap yang menyimpan hasil final
+        dpp: null,
+        ppn_keluar: null,
+        piutang_dagang: null,
       });
 
       router.push("/sales-103");
@@ -93,7 +111,7 @@ export default function CreateSales103Page() {
       <div>
         <h1 className="text-2xl font-bold">Tambah Data 103</h1>
         <p className="text-sm text-gray-500">
-          Form mengikuti header sheet Excel 103
+          Form input mengikuti sheet Excel 103
         </p>
       </div>
 
@@ -220,18 +238,44 @@ export default function CreateSales103Page() {
 
         <div className="rounded border bg-gray-50 p-4">
           <h2 className="mb-3 text-sm font-semibold">
-            Perhitungan Otomatis
+            Preview Perhitungan
           </h2>
 
-          <p className="text-sm text-gray-600">
-            DPP, PPN KELUAR, dan PIUTANG DAGANG tidak perlu diisi. Backend akan
-            menghitung otomatis:
-          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium">DPP</label>
+              <input
+                value={formatNumber(preview.dpp)}
+                disabled
+                className="w-full rounded border bg-white px-3 py-2 text-sm text-right"
+              />
+            </div>
 
-          <div className="mt-2 text-sm text-gray-700">
-            <div>DPP = JML × HARGA</div>
-            <div>PPN KELUAR = DPP × 11%</div>
-            <div>PIUTANG DAGANG = DPP + PPN KELUAR</div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                PPN KELUAR
+              </label>
+              <input
+                value={formatNumber(preview.ppn_keluar)}
+                disabled
+                className="w-full rounded border bg-white px-3 py-2 text-sm text-right"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                PIUTANG DAGANG
+              </label>
+              <input
+                value={formatNumber(preview.piutang_dagang)}
+                disabled
+                className="w-full rounded border bg-white px-3 py-2 text-sm text-right"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3 text-sm text-gray-600">
+            DPP = JML × HARGA, PPN KELUAR = DPP × 11%, PIUTANG DAGANG = DPP + PPN.
           </div>
         </div>
 

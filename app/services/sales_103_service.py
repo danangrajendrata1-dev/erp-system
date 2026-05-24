@@ -11,21 +11,30 @@ class Sales103Service:
 
     def calculate_values(self, data):
         """
-        Rumus mengikuti sheet Excel 103:
+        Rumus fleksibel:
 
         DPP = JML x HARGA
-        PPN KELUAR = DPP x 11%
-        PIUTANG DAGANG = DPP + PPN KELUAR
 
-        Catatan:
-        Kalau dpp / ppn_keluar / piutang_dagang diisi manual,
-        maka nilai manual tetap dipakai.
+        Jika PPN KELUAR diisi manual:
+            pakai nilai manual
+
+        Jika PPN KELUAR kosong:
+            PPN KELUAR = (DPP x PPN RATE / 100) - PPN ADJUSTMENT
+
+        PIUTANG DAGANG = DPP + PPN KELUAR
         """
 
         jml = data.jml or Decimal("0")
         harga = data.harga or Decimal("0")
 
         dpp = data.dpp
+        ppn_rate = data.ppn_rate if data.ppn_rate is not None else Decimal("11")
+        ppn_adjustment = (
+            data.ppn_adjustment
+            if data.ppn_adjustment is not None
+            else Decimal("0")
+        )
+
         ppn_keluar = data.ppn_keluar
         piutang_dagang = data.piutang_dagang
 
@@ -33,12 +42,12 @@ class Sales103Service:
             dpp = jml * harga
 
         if ppn_keluar is None:
-            ppn_keluar = dpp * Decimal("0.11")
+            ppn_keluar = (dpp * ppn_rate / Decimal("100")) - ppn_adjustment
 
         if piutang_dagang is None:
             piutang_dagang = dpp + ppn_keluar
 
-        return dpp, ppn_keluar, piutang_dagang
+        return dpp, ppn_rate, ppn_adjustment, ppn_keluar, piutang_dagang
 
     def get_all(self, db: Session):
         return self.repository.get_all(db)
@@ -47,11 +56,19 @@ class Sales103Service:
         return self.repository.get_by_id(db, sales_103_id)
 
     def create(self, db: Session, data: Sales103Create):
-        dpp, ppn_keluar, piutang_dagang = self.calculate_values(data)
+        (
+            dpp,
+            ppn_rate,
+            ppn_adjustment,
+            ppn_keluar,
+            piutang_dagang,
+        ) = self.calculate_values(data)
 
         payload = data.model_copy(
             update={
                 "dpp": dpp,
+                "ppn_rate": ppn_rate,
+                "ppn_adjustment": ppn_adjustment,
                 "ppn_keluar": ppn_keluar,
                 "piutang_dagang": piutang_dagang,
             }
@@ -68,16 +85,46 @@ class Sales103Service:
         merged_data = Sales103Update(
             tgl=data.tgl if data.tgl is not None else existing_data.tgl,
             no_ord=data.no_ord if data.no_ord is not None else existing_data.no_ord,
-            no_invoice=data.no_invoice if data.no_invoice is not None else existing_data.no_invoice,
-            no_faktur=data.no_faktur if data.no_faktur is not None else existing_data.no_faktur,
-            langganan=data.langganan if data.langganan is not None else existing_data.langganan,
-            jenis_cetak=data.jenis_cetak if data.jenis_cetak is not None else existing_data.jenis_cetak,
+            no_invoice=(
+                data.no_invoice
+                if data.no_invoice is not None
+                else existing_data.no_invoice
+            ),
+            no_faktur=(
+                data.no_faktur
+                if data.no_faktur is not None
+                else existing_data.no_faktur
+            ),
+            langganan=(
+                data.langganan
+                if data.langganan is not None
+                else existing_data.langganan
+            ),
+            jenis_cetak=(
+                data.jenis_cetak
+                if data.jenis_cetak is not None
+                else existing_data.jenis_cetak
+            ),
             jml=data.jml if data.jml is not None else existing_data.jml,
             sat=data.sat if data.sat is not None else existing_data.sat,
             harga=data.harga if data.harga is not None else existing_data.harga,
+
+            # DPP dan PPN KELUAR sengaja pakai data baru.
+            # Kalau kosong, akan dihitung ulang otomatis.
             dpp=data.dpp,
+            ppn_rate=(
+                data.ppn_rate
+                if data.ppn_rate is not None
+                else existing_data.ppn_rate
+            ),
+            ppn_adjustment=(
+                data.ppn_adjustment
+                if data.ppn_adjustment is not None
+                else existing_data.ppn_adjustment
+            ),
             ppn_keluar=data.ppn_keluar,
             piutang_dagang=data.piutang_dagang,
+
             production_order_id=(
                 data.production_order_id
                 if data.production_order_id is not None
@@ -90,14 +137,31 @@ class Sales103Service:
             ),
         )
 
-        dpp, ppn_keluar, piutang_dagang = self.calculate_values(merged_data)
+        (
+            dpp,
+            ppn_rate,
+            ppn_adjustment,
+            ppn_keluar,
+            piutang_dagang,
+        ) = self.calculate_values(merged_data)
 
-        payload = data.model_copy(
-            update={
-                "dpp": dpp,
-                "ppn_keluar": ppn_keluar,
-                "piutang_dagang": piutang_dagang,
-            }
+        payload = Sales103Update(
+            tgl=merged_data.tgl,
+            no_ord=merged_data.no_ord,
+            no_invoice=merged_data.no_invoice,
+            no_faktur=merged_data.no_faktur,
+            langganan=merged_data.langganan,
+            jenis_cetak=merged_data.jenis_cetak,
+            jml=merged_data.jml,
+            sat=merged_data.sat,
+            harga=merged_data.harga,
+            dpp=dpp,
+            ppn_rate=ppn_rate,
+            ppn_adjustment=ppn_adjustment,
+            ppn_keluar=ppn_keluar,
+            piutang_dagang=piutang_dagang,
+            production_order_id=merged_data.production_order_id,
+            keterangan=merged_data.keterangan,
         )
 
         return self.repository.update(db, sales_103_id, payload)
