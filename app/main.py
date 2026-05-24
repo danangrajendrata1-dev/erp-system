@@ -18,10 +18,7 @@ from app.models.sales_order_model import (
     SalesOrder,
     SalesOrderItem
 )
-from app.models.production_model import (
-    ProductionOrder,
-
-)
+from app.models.production_model import ProductionOrder
 from app.models.cash_model import CashTransaction
 from app.models.employee_model import Employee
 from app.models.payroll_model import (
