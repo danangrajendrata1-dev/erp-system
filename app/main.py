@@ -32,7 +32,7 @@ from app.models.shipment_model import Shipment
 from app.api.routes.shipment_route import router as shipment_router
 from app.models.invoice_model import Invoice
 from app.api.routes.invoice_route import router as invoice_router
-
+from app.models.sales_103_model import Sales103
 # =========================
 # ROUTES
 # =========================
@@ -47,7 +47,7 @@ from app.api.routes.cash_route import router as cash_router
 from app.api.routes.payroll_route import router as payroll_router
 from app.api.routes.dashboard_route import router as dashboard_router
 from app.api.routes.material_receipt_route import router as material_receipt_router
-
+from app.api.routes import sales_103_route
 Base.metadata.create_all(bind=engine)
 
 
@@ -78,7 +78,7 @@ app.include_router(material_receipt_router)
 app.include_router(production_process_router)
 app.include_router(shipment_router)
 app.include_router(invoice_router)
-
+app.include_router(sales_103_route.router)
 
 @app.get("/")
 def root():
