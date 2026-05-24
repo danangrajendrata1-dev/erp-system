@@ -33,6 +33,11 @@ from app.api.routes.shipment_route import router as shipment_router
 from app.models.invoice_model import Invoice
 from app.api.routes.invoice_route import router as invoice_router
 from app.models.sales_103_model import Sales103
+from app.models.bkpt_receivables_model import BKPtReceivable
+from app.api.routes import bkpt_receivables_route
+
+
+
 # =========================
 # ROUTES
 # =========================
@@ -79,7 +84,7 @@ app.include_router(production_process_router)
 app.include_router(shipment_router)
 app.include_router(invoice_router)
 app.include_router(sales_103_route.router)
-
+app.include_router(bkpt_receivables_route.router)
 @app.get("/")
 def root():
     return {

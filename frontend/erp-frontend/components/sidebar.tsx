@@ -41,6 +41,7 @@ export default function Sidebar() {
     { title: "Products", href: "/products", icon: Package },
     { title: "BKOrder", href: "/purchase-orders", icon: ShoppingCart },
     { title: "103", href: "/sales-103", icon: FileText },
+    { title: "BKPt", href: "/bkpt", icon: FileText },
     { title: "Bahan Terpakai", href: "/material-usage", icon: ClipboardList },
     { title: "Hasil Produksi", href: "/production-results", icon: Factory },
     { title: "Pengiriman", href: "/delivery", icon: Truck },
