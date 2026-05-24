@@ -72,7 +72,7 @@ export default function Sales103Page() {
       </div>
 
       <div className="overflow-x-auto rounded-lg border bg-white">
-        <table className="w-full min-w-[1600px] border-collapse text-sm">
+        <table className="w-full min-w-[1700px] border-collapse text-sm">
           <thead className="bg-gray-100">
             <tr>
               <th className="border px-3 py-2 text-left">TGL</th>
@@ -108,11 +108,24 @@ export default function Sales103Page() {
               data.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="border px-3 py-2">{item.tgl || ""}</td>
+
                   <td className="border px-3 py-2">{item.no_ord || ""}</td>
-                  <td className="border px-3 py-2">{item.no_invoice || ""}</td>
-                  <td className="border px-3 py-2">{item.no_faktur || ""}</td>
-                  <td className="border px-3 py-2">{item.langganan || ""}</td>
-                  <td className="border px-3 py-2">{item.jenis_cetak || ""}</td>
+
+                  <td className="border px-3 py-2">
+                    {item.no_invoice || ""}
+                  </td>
+
+                  <td className="border px-3 py-2">
+                    {item.no_faktur || ""}
+                  </td>
+
+                  <td className="border px-3 py-2">
+                    {item.langganan || ""}
+                  </td>
+
+                  <td className="border px-3 py-2">
+                    {item.jenis_cetak || ""}
+                  </td>
 
                   <td className="border px-3 py-2 text-right">
                     {formatNumber(item.jml)}
@@ -137,12 +150,21 @@ export default function Sales103Page() {
                   </td>
 
                   <td className="border px-3 py-2 text-center">
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
-                    >
-                      Hapus
-                    </button>
+                    <div className="flex justify-center gap-2">
+                      <Link
+                        href={`/sales-103/${item.id}`}
+                        className="rounded bg-yellow-500 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-600"
+                      >
+                        Edit
+                      </Link>
+
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        Hapus
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

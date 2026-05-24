@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { createSales103 } from "@/services/sales103";
-import { Sales103Create } from "@/types/sales103";
+import { getSales103ById, updateSales103 } from "@/services/sales103";
+import { Sales103Update } from "@/types/sales103";
 
-export default function CreateSales103Page() {
+export default function EditSales103Page() {
   const router = useRouter();
+  const params = useParams();
 
-  const [form, setForm] = useState<Sales103Create>({
+  const sales103Id = Number(params.id);
+
+  const [form, setForm] = useState<Sales103Update>({
     tgl: "",
     no_ord: "",
     no_invoice: "",
@@ -27,6 +30,7 @@ export default function CreateSales103Page() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -55,13 +59,47 @@ export default function CreateSales103Page() {
     }));
   }
 
+  async function loadData() {
+    try {
+      setLoadingData(true);
+
+      const data = await getSales103ById(sales103Id);
+
+      setForm({
+        tgl: data.tgl || "",
+        no_ord: data.no_ord || "",
+        no_invoice: data.no_invoice || "",
+        no_faktur: data.no_faktur || "",
+        langganan: data.langganan || "",
+        jenis_cetak: data.jenis_cetak || "",
+        jml: data.jml === null ? null : Number(data.jml),
+        sat: data.sat || "",
+        harga: data.harga === null ? null : Number(data.harga),
+        dpp: data.dpp === null ? null : Number(data.dpp),
+        ppn_keluar:
+          data.ppn_keluar === null ? null : Number(data.ppn_keluar),
+        piutang_dagang:
+          data.piutang_dagang === null
+            ? null
+            : Number(data.piutang_dagang),
+        production_order_id: data.production_order_id,
+        keterangan: data.keterangan || "",
+      });
+    } catch (error) {
+      console.error("Gagal mengambil data 103:", error);
+      alert("Gagal mengambil data 103");
+    } finally {
+      setLoadingData(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     try {
       setLoading(true);
 
-      await createSales103({
+      await updateSales103(sales103Id, {
         ...form,
         tgl: form.tgl || null,
         no_ord: form.no_ord || null,
@@ -72,7 +110,6 @@ export default function CreateSales103Page() {
         sat: form.sat || null,
         keterangan: form.keterangan || null,
 
-        // Kosongkan supaya backend menghitung otomatis
         dpp: form.dpp || null,
         ppn_keluar: form.ppn_keluar || null,
         piutang_dagang: form.piutang_dagang || null,
@@ -81,17 +118,31 @@ export default function CreateSales103Page() {
       router.push("/sales-103");
       router.refresh();
     } catch (error) {
-      console.error("Gagal menyimpan data 103:", error);
-      alert("Gagal menyimpan data 103");
+      console.error("Gagal mengupdate data 103:", error);
+      alert("Gagal mengupdate data 103");
     } finally {
       setLoading(false);
     }
   }
 
+  useEffect(() => {
+    if (!Number.isNaN(sales103Id)) {
+      loadData();
+    }
+  }, [sales103Id]);
+
+  if (loadingData) {
+    return (
+      <div className="p-6">
+        <p className="text-sm text-gray-500">Loading data 103...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Tambah Data 103</h1>
+        <h1 className="text-2xl font-bold">Edit Data 103</h1>
         <p className="text-sm text-gray-500">
           Form mengikuti header sheet Excel 103
         </p>
@@ -121,7 +172,6 @@ export default function CreateSales103Page() {
               value={form.no_ord || ""}
               onChange={handleChange}
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="Contoh: 01/XII/2022"
             />
           </div>
 
@@ -135,7 +185,6 @@ export default function CreateSales103Page() {
               value={form.no_invoice || ""}
               onChange={handleChange}
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="Contoh: LBR.0001"
             />
           </div>
 
@@ -149,7 +198,6 @@ export default function CreateSales103Page() {
               value={form.no_faktur || ""}
               onChange={handleChange}
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="Contoh: 010.003-23.35009166"
             />
           </div>
 
@@ -161,7 +209,6 @@ export default function CreateSales103Page() {
               value={form.langganan || ""}
               onChange={handleChange}
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="Contoh: PT. Gelora Djaja"
             />
           </div>
 
@@ -175,7 +222,6 @@ export default function CreateSales103Page() {
               value={form.jenis_cetak || ""}
               onChange={handleChange}
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="Contoh: Ambri"
             />
           </div>
 
@@ -188,7 +234,6 @@ export default function CreateSales103Page() {
               value={form.jml ?? ""}
               onChange={handleChange}
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="Contoh: 381.54"
             />
           </div>
 
@@ -200,7 +245,6 @@ export default function CreateSales103Page() {
               value={form.sat || ""}
               onChange={handleChange}
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="Contoh: Rim"
             />
           </div>
 
@@ -213,25 +257,64 @@ export default function CreateSales103Page() {
               value={form.harga ?? ""}
               onChange={handleChange}
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="Contoh: 22100"
             />
           </div>
         </div>
 
         <div className="rounded border bg-gray-50 p-4">
-          <h2 className="mb-3 text-sm font-semibold">
-            Perhitungan Otomatis
-          </h2>
+          <h2 className="mb-3 text-sm font-semibold">Perhitungan Otomatis</h2>
 
           <p className="text-sm text-gray-600">
-            DPP, PPN KELUAR, dan PIUTANG DAGANG tidak perlu diisi. Backend akan
-            menghitung otomatis:
+            Kosongkan DPP, PPN KELUAR, dan PIUTANG DAGANG jika ingin backend
+            menghitung ulang otomatis.
           </p>
 
           <div className="mt-2 text-sm text-gray-700">
             <div>DPP = JML × HARGA</div>
             <div>PPN KELUAR = DPP × 11%</div>
             <div>PIUTANG DAGANG = DPP + PPN KELUAR</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium">DPP</label>
+            <input
+              type="number"
+              step="0.01"
+              name="dpp"
+              value={form.dpp ?? ""}
+              onChange={handleChange}
+              className="w-full rounded border px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              PPN KELUAR
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              name="ppn_keluar"
+              value={form.ppn_keluar ?? ""}
+              onChange={handleChange}
+              className="w-full rounded border px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              PIUTANG DAGANG
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              name="piutang_dagang"
+              value={form.piutang_dagang ?? ""}
+              onChange={handleChange}
+              className="w-full rounded border px-3 py-2 text-sm"
+            />
           </div>
         </div>
 
@@ -252,7 +335,7 @@ export default function CreateSales103Page() {
             disabled={loading}
             className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            {loading ? "Menyimpan..." : "Simpan"}
+            {loading ? "Menyimpan..." : "Update"}
           </button>
 
           <Link
