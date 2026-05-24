@@ -1,0 +1,22 @@
+export type ProductionOrder = {
+  id: number;
+  order_date?: string | null;
+  order_number: string;
+  po_date?: string | null;
+  material_po_number?: string | null;
+  delivery_date?: string | null;
+  customer_id?: number | null;
+  customer_name?: string | null;
+  size?: string | null;
+  material_type?: string | null;
+  print_type?: string | null;
+  specification?: string | null;
+  unit?: string | null;
+  quantity?: number | string | null;
+  rim?: number | string | null;
+  price?: number | string | null;
+  total_quantity?: number | string | null;
+  partial_billing_quantity?: number | string | null;
+  status?: string | null;
+  note?: string | null;
+};

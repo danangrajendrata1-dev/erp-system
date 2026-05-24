@@ -1,89 +1,38 @@
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import ForeignKey
-from sqlalchemy import DateTime
-
-from sqlalchemy.orm import relationship
-
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, Date, Numeric, DateTime, ForeignKey
+from sqlalchemy.sql import func
 
 from app.database.connection import Base
 
 
 class ProductionOrder(Base):
-
     __tablename__ = "production_orders"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
+    id = Column(Integer, primary_key=True, index=True)
 
-    sales_order_id = Column(
-        Integer,
-        ForeignKey("sales_orders.id")
-    )
+    order_date = Column(Date, nullable=True)
+    order_number = Column(String(100), nullable=False, index=True)
+    po_date = Column(Date, nullable=True)
+    material_po_number = Column(String(100), nullable=True)
+    delivery_date = Column(Date, nullable=True)
 
-    start_date = Column(
-        DateTime,
-        default=datetime.utcnow
-    )
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    customer_name = Column(String(255), nullable=True, index=True)
 
-    end_date = Column(
-        DateTime,
-        nullable=True
-    )
+    size = Column(String(100), nullable=True)
+    material_type = Column(String(255), nullable=True)
+    print_type = Column(String(255), nullable=True)
+    specification = Column(Text, nullable=True)
 
-    status = Column(
-        String,
-        default="WAITING"
-    )
+    unit = Column(String(50), nullable=True)
+    quantity = Column(Numeric(18, 2), default=0)
+    rim = Column(Numeric(18, 2), default=0)
+    price = Column(Numeric(18, 2), default=0)
 
-    notes = Column(
-        String,
-        nullable=True
-    )
+    total_quantity = Column(Numeric(18, 2), default=0)
+    partial_billing_quantity = Column(Numeric(18, 2), default=0)
 
-    sales_order = relationship(
-        "SalesOrder"
-    )
+    status = Column(String(50), default="PO_MASUK")
+    note = Column(Text, nullable=True)
 
-class ProductionProgress(Base):
-
-    __tablename__ = "production_progress"
-
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
-
-    production_order_id = Column(
-        Integer,
-        ForeignKey("production_orders.id")
-    )
-
-    process_name = Column(
-        String
-    )
-
-    status = Column(
-        String,
-        default="PENDING"
-    )
-
-    notes = Column(
-        String,
-        nullable=True
-    )
-
-    created_at = Column(
-        DateTime,
-        default=datetime.utcnow
-    )
-
-    production_order = relationship(
-        "ProductionOrder"
-    )
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

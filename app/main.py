@@ -20,7 +20,7 @@ from app.models.sales_order_model import (
 )
 from app.models.production_model import (
     ProductionOrder,
-    ProductionProgress
+
 )
 from app.models.cash_model import CashTransaction
 from app.models.employee_model import Employee
@@ -28,6 +28,13 @@ from app.models.payroll_model import (
     Attendance,
     Payroll
 )
+from app.models.material_receipt_model import MaterialReceipt
+from app.models.production_process_model import ProductionProcess
+from app.api.routes.production_process_route import router as production_process_router
+from app.models.shipment_model import Shipment
+from app.api.routes.shipment_route import router as shipment_router
+from app.models.invoice_model import Invoice
+from app.api.routes.invoice_route import router as invoice_router
 
 # =========================
 # ROUTES
@@ -42,7 +49,7 @@ from app.api.routes.production_route import router as production_router
 from app.api.routes.cash_route import router as cash_router
 from app.api.routes.payroll_route import router as payroll_router
 from app.api.routes.dashboard_route import router as dashboard_router
-
+from app.api.routes.material_receipt_route import router as material_receipt_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -70,6 +77,10 @@ app.include_router(production_router)
 app.include_router(cash_router)
 app.include_router(payroll_router)
 app.include_router(dashboard_router)
+app.include_router(material_receipt_router)
+app.include_router(production_process_router)
+app.include_router(shipment_router)
+app.include_router(invoice_router)
 
 
 @app.get("/")

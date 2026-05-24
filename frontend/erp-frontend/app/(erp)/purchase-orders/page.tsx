@@ -1,73 +1,100 @@
-import StatusBadge from "@/components/status-badge";
-export default function PurchaseOrdersPage() {
-  const purchaseOrders = [
-    {
-      id: "PO-001",
-      supplier: "PT Bahan Makmur",
-      date: "2026-05-20",
-      item: "Kertas Roll",
-      qty: "20 Roll",
-      status: "ORDERED",
-    },
-    {
-      id: "PO-002",
-      supplier: "CV Sinar Plastik",
-      date: "2026-05-21",
-      item: "Plastik Packing",
-      qty: "100 Kg",
-      status: "RECEIVED",
-    },
-  ];
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { getProductionOrders } from "@/services/production";
+import { ProductionOrder } from "@/types/production";
+
+export default function ProductionOrdersPage() {
+  const [orders, setOrders] = useState<ProductionOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadOrders() {
+    try {
+      const data = await getProductionOrders();
+      setOrders(data);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Gagal memuat data");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">
-            Purchase Order
-          </h1>
-          <p className="text-slate-500 mt-2">
-            Halaman input PO pembelian bahan ke supplier.
+          <h1 className="text-2xl font-bold">PO Masuk / Order Produksi</h1>
+          <p className="text-sm text-gray-500">
+            Data order produksi sesuai alur BKOrder client.
           </p>
         </div>
 
-        <button className="bg-black text-white px-5 py-3 rounded-lg">
-          Create PO
-        </button>
+        <Link
+          href="/production-orders/create"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-white"
+        >
+          + Tambah PO
+        </Link>
       </div>
 
-      <div className="bg-white rounded-2xl shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-slate-100">
-            <tr>
-              <th className="p-4 text-left">PO No</th>
-              <th className="p-4 text-left">Supplier</th>
-              <th className="p-4 text-left">Date</th>
-              <th className="p-4 text-left">Item</th>
-              <th className="p-4 text-left">Qty</th>
-              <th className="p-4 text-left">Status</th>
-              <th className="p-4 text-left">Action</th>
+      <div className="overflow-x-auto rounded-lg bg-white shadow">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-gray-100 text-left">
+              <th className="border p-3">No</th>
+              <th className="border p-3">No. Order</th>
+              <th className="border p-3">Customer</th>
+              <th className="border p-3">Bahan</th>
+              <th className="border p-3">Cetak</th>
+              <th className="border p-3">Qty</th>
+              <th className="border p-3">Status</th>
+              <th className="border p-3">Aksi</th>
             </tr>
           </thead>
 
           <tbody>
-            {purchaseOrders.map((po) => (
-              <tr key={po.id} className="border-t">
-                <td className="p-4">{po.id}</td>
-                <td className="p-4">{po.supplier}</td>
-                <td className="p-4">{po.date}</td>
-                <td className="p-4">{po.item}</td>
-                <td className="p-4">{po.qty}</td>
-                <td className="p-4">
-                    <StatusBadge status={po.status} />
-                </td>
-                <td className="p-4">
-                  <button className="bg-slate-900 text-white px-4 py-2 rounded-lg">
-                    Detail
-                  </button>
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="p-4 text-center">
+                  Memuat data...
                 </td>
               </tr>
-            ))}
+            ) : orders.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="p-4 text-center">
+                  Belum ada data PO
+                </td>
+              </tr>
+            ) : (
+              orders.map((order, index) => (
+                <tr key={order.id}>
+                  <td className="border p-3">{index + 1}</td>
+                  <td className="border p-3">{order.order_number}</td>
+                  <td className="border p-3">{order.customer_name}</td>
+                  <td className="border p-3">{order.material_type}</td>
+                  <td className="border p-3">{order.print_type}</td>
+                  <td className="border p-3">{order.quantity}</td>
+                  <td className="border p-3">
+                    <span className="rounded bg-yellow-100 px-2 py-1 text-xs">
+                      {order.status}
+                    </span>
+                  </td>
+                  <td className="border p-3">
+                    <Link
+                      href={`/production-orders/${order.id}`}
+                      className="text-blue-600 underline"
+                    >
+                      Detail
+                    </Link>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
