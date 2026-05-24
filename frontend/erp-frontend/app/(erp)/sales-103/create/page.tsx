@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createSales103, getSales103ById } from "@/services/sales103";
@@ -15,7 +15,7 @@ function formatNumber(value: number | null) {
   }).format(value);
 }
 
-export default function CreateSales103Page() {
+function CreateSales103Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const copyFrom = searchParams.get("copyFrom");
@@ -232,9 +232,7 @@ export default function CreateSales103Page() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">
-              NO. FAKTUR
-            </label>
+            <label className="mb-1 block text-sm font-medium">NO. FAKTUR</label>
             <input
               type="text"
               name="no_faktur"
@@ -432,5 +430,19 @@ export default function CreateSales103Page() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function CreateSales103Page() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6 text-sm text-gray-500">
+          Loading halaman tambah data 103...
+        </div>
+      }
+    >
+      <CreateSales103Content />
+    </Suspense>
   );
 }
