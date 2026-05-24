@@ -1,33 +1,46 @@
-import api from "./api";
-import {
-  Sales103,
-  Sales103Create,
-  Sales103Update,
-} from "@/types/sales103";
+export interface Sales103 {
+  id: number;
 
-export async function getSales103(): Promise<Sales103[]> {
-  const response = await api.get("/sales-103/");
-  return response.data;
+  tgl: string | null;
+  no_ord: string | null;
+  no_invoice: string | null;
+  no_faktur: string | null;
+  langganan: string | null;
+  jenis_cetak: string | null;
+
+  jml: string | number | null;
+  sat: string | null;
+  harga: string | number | null;
+
+  dpp: string | number | null;
+  ppn_keluar: string | number | null;
+  piutang_dagang: string | number | null;
+
+  production_order_id: number | null;
+  keterangan: string | null;
+
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
-export async function getSales103ById(id: number): Promise<Sales103> {
-  const response = await api.get(`/sales-103/${id}`);
-  return response.data;
+export interface Sales103Create {
+  tgl?: string | null;
+  no_ord?: string | null;
+  no_invoice?: string | null;
+  no_faktur?: string | null;
+  langganan?: string | null;
+  jenis_cetak?: string | null;
+
+  jml?: number | null;
+  sat?: string | null;
+  harga?: number | null;
+
+  dpp?: number | null;
+  ppn_keluar?: number | null;
+  piutang_dagang?: number | null;
+
+  production_order_id?: number | null;
+  keterangan?: string | null;
 }
 
-export async function createSales103(data: Sales103Create): Promise<Sales103> {
-  const response = await api.post("/sales-103/", data);
-  return response.data;
-}
-
-export async function updateSales103(
-  id: number,
-  data: Sales103Update
-): Promise<Sales103> {
-  const response = await api.put(`/sales-103/${id}`, data);
-  return response.data;
-}
-
-export async function deleteSales103(id: number): Promise<void> {
-  await api.delete(`/sales-103/${id}`);
-}
+export interface Sales103Update extends Sales103Create {}
