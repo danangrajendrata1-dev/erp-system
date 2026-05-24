@@ -35,7 +35,7 @@ export default function ProductionOrdersPage() {
         </div>
 
         <Link
-          href="/production-orders/create"
+          href="/purchase-orders/create"
           className="rounded-lg bg-blue-600 px-4 py-2 text-white"
         >
           + Tambah PO
@@ -86,7 +86,7 @@ export default function ProductionOrdersPage() {
                   </td>
                   <td className="border p-3">
                     <Link
-                      href={`/production-orders/${order.id}`}
+                      href={`/purchase-orders/${order.id}`}
                       className="text-blue-600 underline"
                     >
                       Detail
