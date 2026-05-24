@@ -11,7 +11,7 @@ from app.services.production_service import ProductionService
 
 
 router = APIRouter(
-    prefix="/purchase-orders",
+    prefix="/production-orders",
     tags=["Production Orders"]
 )
 
