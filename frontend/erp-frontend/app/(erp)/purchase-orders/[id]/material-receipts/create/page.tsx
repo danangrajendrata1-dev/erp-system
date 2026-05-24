@@ -9,7 +9,6 @@ export default function CreateMaterialReceiptPage() {
   const router = useRouter();
 
   const productionOrderId = Number(params.id);
-
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -42,20 +41,20 @@ export default function CreateMaterialReceiptPage() {
         material_id: null,
         supplier_id: null,
         receipt_date: form.receipt_date || null,
-        material_name: form.material_name,
-        supplier_name: form.supplier_name,
+        material_name: form.material_name || null,
+        supplier_name: form.supplier_name || null,
         quantity: form.quantity ? Number(form.quantity) : 0,
-        unit: form.unit,
-        note: form.note,
+        unit: form.unit || null,
+        note: form.note || null,
       });
 
-      alert("Data bahan datang berhasil disimpan");
+      alert("Data Bahan Datang berhasil disimpan");
       router.push(`/purchase-orders/${productionOrderId}`);
     } catch (error) {
       alert(
         error instanceof Error
           ? error.message
-          : "Gagal menyimpan bahan datang"
+          : "Gagal menyimpan data Bahan Datang"
       );
     } finally {
       setLoading(false);
@@ -67,51 +66,55 @@ export default function CreateMaterialReceiptPage() {
       <div>
         <h1 className="text-2xl font-bold">Input Bahan Datang</h1>
         <p className="text-sm text-gray-500">
-          Catat bahan yang datang untuk PO ini.
+          Catat bahan yang sudah datang untuk BKOrder ini.
         </p>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-5 rounded-xl border bg-white p-6 shadow-sm"
+        className="space-y-6 rounded-xl border bg-white p-6 shadow-sm"
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Input
-            label="Tanggal Datang"
-            name="receipt_date"
-            type="date"
-            value={form.receipt_date}
-            onChange={handleChange}
-          />
+        <div>
+          <h2 className="mb-4 text-lg font-semibold">Data Bahan Datang</h2>
 
-          <Input
-            label="Nama Bahan"
-            name="material_name"
-            value={form.material_name}
-            onChange={handleChange}
-          />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Input
+              label="Tanggal Bahan Datang"
+              name="receipt_date"
+              type="date"
+              value={form.receipt_date}
+              onChange={handleChange}
+            />
 
-          <Input
-            label="Supplier"
-            name="supplier_name"
-            value={form.supplier_name}
-            onChange={handleChange}
-          />
+            <Input
+              label="JENIS BAHAN"
+              name="material_name"
+              value={form.material_name}
+              onChange={handleChange}
+            />
 
-          <Input
-            label="Jumlah"
-            name="quantity"
-            type="number"
-            value={form.quantity}
-            onChange={handleChange}
-          />
+            <Input
+              label="Supplier"
+              name="supplier_name"
+              value={form.supplier_name}
+              onChange={handleChange}
+            />
 
-          <Input
-            label="Satuan"
-            name="unit"
-            value={form.unit}
-            onChange={handleChange}
-          />
+            <Input
+              label="JUMLAH"
+              name="quantity"
+              type="number"
+              value={form.quantity}
+              onChange={handleChange}
+            />
+
+            <Input
+              label="SAT"
+              name="unit"
+              value={form.unit}
+              onChange={handleChange}
+            />
+          </div>
         </div>
 
         <Textarea

@@ -25,7 +25,7 @@ export default function PurchaseOrderDetailPage() {
       const result = await getProductionOrderTimeline(id);
       setData(result);
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Gagal memuat detail PO");
+      alert(error instanceof Error ? error.message : "Gagal memuat detail BKOrder");
     } finally {
       setLoading(false);
     }
@@ -38,22 +38,30 @@ export default function PurchaseOrderDetailPage() {
   }, [id]);
 
   if (loading) {
-    return <div className="p-6">Memuat detail PO...</div>;
+    return <div className="p-6">Memuat detail BKOrder...</div>;
   }
 
   if (!data || !data.order) {
-    return <div className="p-6">Data PO tidak ditemukan.</div>;
+    return <div className="p-6">Data BKOrder tidak ditemukan.</div>;
   }
 
   const order = data.order;
+
+  const potongCetak = data.processes.filter(
+    (item) => item.process_type === "POTONG" || item.process_type === "CETAK"
+  );
+
+  const finishing = data.processes.filter(
+    (item) => item.process_type === "FINISHING"
+  );
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Detail PO</h1>
+          <h1 className="text-2xl font-bold">Detail BKOrder</h1>
           <p className="text-sm text-gray-500">
-            Timeline order produksi dari PO masuk sampai invoice.
+            Detail order berdasarkan alur kerja client dari PO masuk sampai invoice terbit.
           </p>
         </div>
 
@@ -67,32 +75,32 @@ export default function PurchaseOrderDetailPage() {
 
       <div className="rounded-xl border bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Informasi PO</h2>
+          <h2 className="text-lg font-semibold">Data BKOrder</h2>
           <span className="rounded bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-800">
             {order.status}
           </span>
         </div>
 
         <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
-          <Info label="No. Order" value={order.order_number} />
-          <Info label="Tanggal Order" value={order.order_date} />
+          <Info label="TGL" value={order.order_date} />
+          <Info label="NO.ORD" value={order.order_number} />
           <Info label="PO Date" value={order.po_date} />
           <Info label="PO Bahan" value={order.material_po_number} />
-          <Info label="Delivery Date" value={order.delivery_date} />
-          <Info label="Customer / PR" value={order.customer_name} />
-          <Info label="Ukuran" value={order.size} />
-          <Info label="Jenis Bahan" value={order.material_type} />
-          <Info label="Jenis Cetak" value={order.print_type} />
-          <Info label="Satuan" value={order.unit} />
-          <Info label="Jumlah" value={order.quantity} />
+          <Info label="Deliv. Date" value={order.delivery_date} />
+          <Info label="PR" value={order.customer_name} />
+          <Info label="UKURAN" value={order.size} />
+          <Info label="JENIS BAHAN" value={order.material_type} />
+          <Info label="JENIS CETAK" value={order.print_type} />
+          <Info label="SAT" value={order.unit} />
+          <Info label="JUMLAH" value={order.quantity} />
           <Info label="Rim" value={order.rim} />
-          <Info label="Harga" value={order.price} />
-          <Info label="Total Qty" value={order.total_quantity} />
-          <Info label="Tagihan Parsial" value={order.partial_billing_quantity} />
+          <Info label="HARGA" value={order.price} />
+          <Info label="TAGIHAN PARSIAL" value={order.partial_billing_quantity} />
+          <Info label="TOTAL" value={order.total_quantity} />
         </div>
 
         <div className="mt-4">
-          <Info label="Spesifikasi" value={order.specification} />
+          <Info label="SPESIFIKASI" value={order.specification} />
         </div>
 
         <div className="mt-4">
@@ -100,17 +108,42 @@ export default function PurchaseOrderDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <ActionButton label="+ Bahan Datang" href={`/purchase-orders/${id}/material-receipts/create`} />
-        <ActionButton label="+ Proses Produksi" href={`/purchase-orders/${id}/processes/create`} />
-        <ActionButton label="+ Kirim" href={`/purchase-orders/${id}/shipments/create`} />
-        <ActionButton label="+ Terbitkan Invoice" href={`/purchase-orders/${id}/invoices/create`} />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <ActionButton
+          label="+ Bahan Datang"
+          href={`/purchase-orders/${id}/material-receipts/create`}
+        />
+        <ActionButton
+          label="+ Potong & Cetak"
+          href={`/purchase-orders/${id}/processes/create`}
+        />
+        <ActionButton
+          label="+ Finishing"
+          href={`/purchase-orders/${id}/finishings/create`}
+        />
+        <ActionButton
+          label="+ Kirim"
+          href={`/purchase-orders/${id}/shipments/create`}
+        />
+        <ActionButton
+          label="+ Invoice Terbit"
+          href={`/purchase-orders/${id}/invoices/create`}
+        />
       </div>
 
-      <Section title="Bahan Datang">
+      <Section title="1. PO Masuk">
+        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-4">
+          <Info label="NO.ORD" value={order.order_number} />
+          <Info label="TGL" value={order.order_date} />
+          <Info label="PR" value={order.customer_name} />
+          <Info label="STATUS" value={order.status} />
+        </div>
+      </Section>
+
+      <Section title="2. Bahan Datang">
         <SimpleTable
           emptyText="Belum ada data bahan datang."
-          headers={["Tanggal", "Bahan", "Supplier", "Qty", "Satuan", "Catatan"]}
+          headers={["Tanggal Datang", "Nama Bahan", "Supplier", "Jumlah", "SAT", "Catatan"]}
           rows={data.material_receipts.map((item) => [
             item.receipt_date,
             item.material_name,
@@ -122,11 +155,21 @@ export default function PurchaseOrderDetailPage() {
         />
       </Section>
 
-      <Section title="Proses Produksi">
+      <Section title="3. Potong & Cetak">
         <SimpleTable
-          emptyText="Belum ada data proses produksi."
-          headers={["Proses", "Mulai", "Selesai", "Operator", "Mesin", "Input", "Output", "Reject"]}
-          rows={data.processes.map((item) => [
+          emptyText="Belum ada data potong dan cetak."
+          headers={[
+            "Proses",
+            "Tanggal Mulai",
+            "Tanggal Selesai",
+            "Operator",
+            "Mesin",
+            "Input",
+            "Output",
+            "Reject",
+            "Catatan",
+          ]}
+          rows={potongCetak.map((item) => [
             item.process_type,
             item.start_date,
             item.finish_date,
@@ -135,30 +178,80 @@ export default function PurchaseOrderDetailPage() {
             item.input_quantity,
             item.output_quantity,
             item.reject_quantity,
+            item.note,
           ])}
         />
       </Section>
 
-      <Section title="Pengiriman">
+      <Section title="4. Proses Finishing">
+        <SimpleTable
+          emptyText="Belum ada data finishing."
+          headers={[
+            "Proses",
+            "Tanggal Mulai",
+            "Tanggal Selesai",
+            "Operator",
+            "Mesin",
+            "Input",
+            "Output",
+            "Reject",
+            "Catatan",
+          ]}
+          rows={finishing.map((item) => [
+            item.process_type,
+            item.start_date,
+            item.finish_date,
+            item.operator_name,
+            item.machine_name,
+            item.input_quantity,
+            item.output_quantity,
+            item.reject_quantity,
+            item.note,
+          ])}
+        />
+      </Section>
+
+      <Section title="5. Kirim">
         <SimpleTable
           emptyText="Belum ada data pengiriman."
-          headers={["No. Surat Jalan", "Tanggal", "Customer", "Driver", "Ekspedisi", "Qty", "Satuan"]}
+          headers={[
+            "No. Surat Jalan",
+            "Tanggal Kirim",
+            "Customer",
+            "Alamat",
+            "Driver",
+            "Ekspedisi",
+            "Jumlah Kirim",
+            "SAT",
+            "Catatan",
+          ]}
           rows={data.shipments.map((item) => [
             item.delivery_note_number,
             item.shipment_date,
             item.customer_name,
+            item.delivery_address,
             item.driver_name,
             item.expedition_name,
             item.shipped_quantity,
             item.unit,
+            item.note,
           ])}
         />
       </Section>
 
-      <Section title="Invoice">
+      <Section title="6. Invoice Terbit">
         <SimpleTable
           emptyText="Belum ada invoice."
-          headers={["No. Invoice", "Tanggal", "Customer", "Subtotal", "PPN", "Grand Total", "Status"]}
+          headers={[
+            "No. Invoice",
+            "Tanggal Invoice",
+            "Customer",
+            "Subtotal",
+            "PPN",
+            "Grand Total",
+            "Status Pembayaran",
+            "Catatan",
+          ]}
           rows={data.invoices.map((item) => [
             item.invoice_number,
             item.invoice_date,
@@ -167,6 +260,7 @@ export default function PurchaseOrderDetailPage() {
             item.ppn_amount,
             item.grand_total,
             item.payment_status,
+            item.note,
           ])}
         />
       </Section>
@@ -177,8 +271,8 @@ export default function PurchaseOrderDetailPage() {
 function Info({ label, value }: { label: string; value: any }) {
   return (
     <div>
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="font-medium">{value ?? "-"}</p>
+      <p className="text-xs font-medium text-gray-500">{label}</p>
+      <p className="font-semibold">{value ?? "-"}</p>
     </div>
   );
 }
