@@ -247,7 +247,7 @@ export default function Sales103Page() {
               </div>
 
               <div className="overflow-x-auto rounded-b-lg border bg-white print:overflow-visible print:rounded-none">
-                <table className="w-full min-w-[1700px] border-collapse text-sm print:min-w-0 print:text-[10px]">
+                <table className="w-full min-w-[1800px] border-collapse text-sm print:min-w-0 print:text-[10px]">
                   <thead className="bg-gray-100">
                     <tr>
                       <th className="border px-3 py-2 text-left print:px-1 print:py-1">
@@ -363,6 +363,13 @@ export default function Sales103Page() {
 
                           <td className="print:hidden border px-3 py-2 text-center">
                             <div className="flex justify-center gap-2">
+                              <Link
+                                href={`/sales-103/create?copyFrom=${item.id}`}
+                                className="rounded bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700"
+                              >
+                                + Baris
+                              </Link>
+
                               <Link
                                 href={`/sales-103/${item.id}`}
                                 className="rounded bg-yellow-500 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-600"

@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createSales103 } from "@/services/sales103";
+import { createSales103, getSales103ById } from "@/services/sales103";
 import { Sales103Create } from "@/types/sales103";
 
 function formatNumber(value: number | null) {
@@ -17,6 +17,8 @@ function formatNumber(value: number | null) {
 
 export default function CreateSales103Page() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const copyFrom = searchParams.get("copyFrom");
 
   const [form, setForm] = useState<Sales103Create>({
     tgl: "",
@@ -29,6 +31,8 @@ export default function CreateSales103Page() {
     sat: "",
     harga: null,
     dpp: null,
+    ppn_rate: 11,
+    ppn_adjustment: 0,
     ppn_keluar: null,
     piutang_dagang: null,
     production_order_id: null,
@@ -36,28 +40,46 @@ export default function CreateSales103Page() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [loadingCopy, setLoadingCopy] = useState(false);
 
   const preview = useMemo(() => {
     const jml = Number(form.jml || 0);
     const harga = Number(form.harga || 0);
+    const ppnRate = Number(form.ppn_rate ?? 11);
+    const ppnAdjustment = Number(form.ppn_adjustment || 0);
 
     const dpp = jml * harga;
-    const ppnKeluar = dpp * 0.11;
-    const piutangDagang = dpp + ppnKeluar;
+    const ppnKeluar =
+      form.ppn_keluar ?? (dpp * ppnRate) / 100 - ppnAdjustment;
+    const piutangDagang = form.piutang_dagang ?? dpp + ppnKeluar;
 
     return {
       dpp,
       ppn_keluar: ppnKeluar,
       piutang_dagang: piutangDagang,
     };
-  }, [form.jml, form.harga]);
+  }, [
+    form.jml,
+    form.harga,
+    form.ppn_rate,
+    form.ppn_adjustment,
+    form.ppn_keluar,
+    form.piutang_dagang,
+  ]);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
     const { name, value } = e.target;
 
-    const numberFields = ["jml", "harga"];
+    const numberFields = [
+      "jml",
+      "harga",
+      "ppn_rate",
+      "ppn_adjustment",
+      "ppn_keluar",
+      "piutang_dagang",
+    ];
 
     if (numberFields.includes(name)) {
       setForm((prev) => ({
@@ -71,6 +93,45 @@ export default function CreateSales103Page() {
       ...prev,
       [name]: value,
     }));
+  }
+
+  async function loadCopiedInvoice() {
+    if (!copyFrom) return;
+
+    try {
+      setLoadingCopy(true);
+
+      const copiedData = await getSales103ById(Number(copyFrom));
+
+      setForm((prev) => ({
+        ...prev,
+
+        tgl: copiedData.tgl || "",
+        no_ord: copiedData.no_ord || "",
+        no_invoice: copiedData.no_invoice || "",
+        no_faktur: copiedData.no_faktur || "",
+        langganan: copiedData.langganan || "",
+
+        jenis_cetak: "",
+        jml: null,
+        sat: copiedData.sat || "",
+        harga: copiedData.harga === null ? null : Number(copiedData.harga),
+
+        ppn_rate:
+          copiedData.ppn_rate === null ? 11 : Number(copiedData.ppn_rate),
+        ppn_adjustment: 0,
+        ppn_keluar: null,
+
+        dpp: null,
+        piutang_dagang: null,
+        keterangan: "",
+      }));
+    } catch (error) {
+      console.error("Gagal menyalin data invoice:", error);
+      alert("Gagal menyalin data invoice");
+    } finally {
+      setLoadingCopy(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -90,10 +151,9 @@ export default function CreateSales103Page() {
         sat: form.sat || null,
         keterangan: form.keterangan || null,
 
-        // Backend tetap yang menyimpan hasil final
         dpp: null,
-        ppn_keluar: null,
-        piutang_dagang: null,
+        ppn_keluar: form.ppn_keluar ?? null,
+        piutang_dagang: form.piutang_dagang ?? null,
       });
 
       router.push("/sales-103");
@@ -106,14 +166,28 @@ export default function CreateSales103Page() {
     }
   }
 
+  useEffect(() => {
+    loadCopiedInvoice();
+  }, [copyFrom]);
+
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Tambah Data 103</h1>
+        <h1 className="text-2xl font-bold">
+          {copyFrom ? "Tambah Baris Invoice 103" : "Tambah Data 103"}
+        </h1>
         <p className="text-sm text-gray-500">
-          Form input mengikuti sheet Excel 103
+          {copyFrom
+            ? "Membuat baris lanjutan untuk invoice yang sama"
+            : "Form mengikuti sheet Excel 103"}
         </p>
       </div>
+
+      {loadingCopy && (
+        <div className="rounded border bg-yellow-50 px-4 py-3 text-sm text-yellow-700">
+          Menyalin data invoice...
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -205,7 +279,7 @@ export default function CreateSales103Page() {
               name="jml"
               value={form.jml ?? ""}
               onChange={handleChange}
-              className="w-full rounded border px-3 py-2 text-sm"
+              className="w-full rounded border px-3 py-2 text-sm text-right"
               placeholder="Contoh: 381.54"
             />
           </div>
@@ -230,16 +304,70 @@ export default function CreateSales103Page() {
               name="harga"
               value={form.harga ?? ""}
               onChange={handleChange}
-              className="w-full rounded border px-3 py-2 text-sm"
+              className="w-full rounded border px-3 py-2 text-sm text-right"
               placeholder="Contoh: 22100"
             />
           </div>
         </div>
 
         <div className="rounded border bg-gray-50 p-4">
-          <h2 className="mb-3 text-sm font-semibold">
-            Preview Perhitungan
-          </h2>
+          <h2 className="mb-3 text-sm font-semibold">PPN Fleksibel</h2>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                PPN RATE (%)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="ppn_rate"
+                value={form.ppn_rate ?? ""}
+                onChange={handleChange}
+                className="w-full rounded border px-3 py-2 text-sm text-right"
+                placeholder="Default 11"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                PENGURANGAN PPN
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="ppn_adjustment"
+                value={form.ppn_adjustment ?? ""}
+                onChange={handleChange}
+                className="w-full rounded border px-3 py-2 text-sm text-right"
+                placeholder="Contoh: 100000"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                PPN KELUAR MANUAL
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="ppn_keluar"
+                value={form.ppn_keluar ?? ""}
+                onChange={handleChange}
+                className="w-full rounded border px-3 py-2 text-sm text-right"
+                placeholder="Kosongkan jika otomatis"
+              />
+            </div>
+          </div>
+
+          <p className="mt-3 text-sm text-gray-600">
+            Jika PPN KELUAR MANUAL dikosongkan, sistem menghitung:
+            PPN KELUAR = DPP × PPN RATE - PENGURANGAN PPN.
+          </p>
+        </div>
+
+        <div className="rounded border bg-gray-50 p-4">
+          <h2 className="mb-3 text-sm font-semibold">Preview Perhitungan</h2>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
@@ -273,10 +401,6 @@ export default function CreateSales103Page() {
               />
             </div>
           </div>
-
-          <div className="mt-3 text-sm text-gray-600">
-            DPP = JML × HARGA, PPN KELUAR = DPP × 11%, PIUTANG DAGANG = DPP + PPN.
-          </div>
         </div>
 
         <div>
@@ -293,7 +417,7 @@ export default function CreateSales103Page() {
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || loadingCopy}
             className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
             {loading ? "Menyimpan..." : "Simpan"}
