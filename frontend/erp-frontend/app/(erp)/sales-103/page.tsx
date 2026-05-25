@@ -377,6 +377,14 @@ export default function Sales103Page() {
                                 Edit
                               </Link>
 
+                                {item.no_invoice && (
+                                  <Link
+                                    href={`/invoice-103/${encodeURIComponent(item.no_invoice)}`}
+                                    className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
+                                      >
+                                      Cetak Invoice
+                                  </Link>
+                                )}
                               <button
                                 onClick={() => handleDelete(item.id)}
                                 className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
