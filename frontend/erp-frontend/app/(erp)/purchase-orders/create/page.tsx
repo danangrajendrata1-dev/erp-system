@@ -323,6 +323,7 @@ export default function CreatePurchaseOrderPage() {
               onChange={(e) => updateField("status", e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm"
             >
+              <option value="PO_MASUK">PO_MASUK</option>
               <option value="OPEN">OPEN</option>
               <option value="PROSES">PROSES</option>
               <option value="SELESAI">SELESAI</option>
