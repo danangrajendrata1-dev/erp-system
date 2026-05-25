@@ -1,82 +1,83 @@
+from typing import Optional
+
+from sqlalchemy import extract, or_
 from sqlalchemy.orm import Session
+
 from app.models.production_model import ProductionOrder
 from app.schemas.production_schema import ProductionOrderCreate, ProductionOrderUpdate
 
 
-class ProductionRepository:
+class ProductionOrderRepository:
+    def __init__(self, db: Session):
+        self.db = db
 
-    @staticmethod
-    def create(db: Session, data: ProductionOrderCreate):
-        new_order = ProductionOrder(**data.model_dump())
-        db.add(new_order)
-        db.commit()
-        db.refresh(new_order)
-        return new_order
+    def get_all(
+        self,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        month: Optional[int] = None,
+        year: Optional[int] = None,
+    ):
+        query = self.db.query(ProductionOrder)
 
-    @staticmethod
-    def get_all(db: Session):
+        if search:
+            like = f"%{search}%"
+            query = query.filter(
+                or_(
+                    ProductionOrder.order_number.ilike(like),
+                    ProductionOrder.do_number.ilike(like),
+                    ProductionOrder.customer_name.ilike(like),
+                    ProductionOrder.material_type.ilike(like),
+                    ProductionOrder.print_type.ilike(like),
+                    ProductionOrder.specification.ilike(like),
+                )
+            )
+
+        if status:
+            query = query.filter(ProductionOrder.status == status)
+
+        if month:
+            query = query.filter(extract("month", ProductionOrder.order_date) == month)
+
+        if year:
+            query = query.filter(extract("year", ProductionOrder.order_date) == year)
+
+        return query.order_by(
+            ProductionOrder.order_date.asc().nullslast(),
+            ProductionOrder.id.asc(),
+        ).all()
+
+    def get_by_id(self, production_order_id: int):
         return (
-            db.query(ProductionOrder)
-            .order_by(ProductionOrder.id.desc())
-            .all()
-        )
-
-    @staticmethod
-    def get_by_id(db: Session, order_id: int):
-        return (
-            db.query(ProductionOrder)
-            .filter(ProductionOrder.id == order_id)
+            self.db.query(ProductionOrder)
+            .filter(ProductionOrder.id == production_order_id)
             .first()
         )
 
-    @staticmethod
-    def update(db: Session, order_id: int, data: ProductionOrderUpdate):
-        order = (
-            db.query(ProductionOrder)
-            .filter(ProductionOrder.id == order_id)
-            .first()
-        )
+    def create(self, data: ProductionOrderCreate):
+        obj = ProductionOrder(**data.model_dump())
+        self.db.add(obj)
+        self.db.commit()
+        self.db.refresh(obj)
+        return obj
 
-        if not order:
+    def update(self, production_order_id: int, data: ProductionOrderUpdate):
+        obj = self.get_by_id(production_order_id)
+        if not obj:
             return None
 
-        update_data = data.model_dump(exclude_unset=True)
+        for key, value in data.model_dump(exclude_unset=True).items():
+            setattr(obj, key, value)
 
-        for key, value in update_data.items():
-            setattr(order, key, value)
+        self.db.commit()
+        self.db.refresh(obj)
+        return obj
 
-        db.commit()
-        db.refresh(order)
-        return order
-
-    @staticmethod
-    def update_status(db: Session, order_id: int, status: str):
-        order = (
-            db.query(ProductionOrder)
-            .filter(ProductionOrder.id == order_id)
-            .first()
-        )
-
-        if not order:
+    def delete(self, production_order_id: int):
+        obj = self.get_by_id(production_order_id)
+        if not obj:
             return None
 
-        order.status = status
-
-        db.commit()
-        db.refresh(order)
-        return order
-
-    @staticmethod
-    def delete(db: Session, order_id: int):
-        order = (
-            db.query(ProductionOrder)
-            .filter(ProductionOrder.id == order_id)
-            .first()
-        )
-
-        if not order:
-            return None
-
-        db.delete(order)
-        db.commit()
-        return order
+        self.db.delete(obj)
+        self.db.commit()
+        return obj

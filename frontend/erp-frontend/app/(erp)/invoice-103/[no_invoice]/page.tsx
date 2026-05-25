@@ -66,6 +66,16 @@ export default function Invoice103DetailPage() {
     router.push(`/bkpt/create?${query.toString()}`);
   }
 
+  function handleLihatBKPt() {
+    if (!data) return;
+
+    const query = new URLSearchParams({
+      no_invoice: data.no_invoice || "",
+    });
+
+    router.push(`/bkpt?${query.toString()}`);
+  }
+
   if (loading) {
     return <div className="p-6">Loading invoice...</div>;
   }
@@ -110,10 +120,10 @@ export default function Invoice103DetailPage() {
 
         {alreadyInBKPt ? (
           <button
-            disabled
-            className="cursor-not-allowed rounded bg-gray-400 px-4 py-2 text-white"
+            onClick={handleLihatBKPt}
+            className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
           >
-            Sudah Masuk BKPt
+            Lihat BKPt
           </button>
         ) : (
           <button
@@ -201,9 +211,7 @@ export default function Invoice103DetailPage() {
                     {index + 1}
                   </td>
 
-                  <td className="border px-3 py-2">
-                    {item.no_ord || ""}
-                  </td>
+                  <td className="border px-3 py-2">{item.no_ord || ""}</td>
 
                   <td className="border px-3 py-2">
                     {item.jenis_cetak || ""}
@@ -213,9 +221,7 @@ export default function Invoice103DetailPage() {
                     {formatCurrency(item.jml)}
                   </td>
 
-                  <td className="border px-3 py-2">
-                    {item.sat || ""}
-                  </td>
+                  <td className="border px-3 py-2">{item.sat || ""}</td>
 
                   <td className="border px-3 py-2 text-right">
                     {formatCurrency(item.harga)}

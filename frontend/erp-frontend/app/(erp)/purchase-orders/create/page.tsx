@@ -1,378 +1,226 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FormEvent, useMemo, useState } from "react";
 import { createProductionOrder } from "@/services/production";
+import { ProductionOrderPayload } from "@/types/production";
+
+const REPEAT_COLUMNS = Array.from({ length: 14 }, (_, index) => index);
+
+const emptyForm: ProductionOrderPayload = {
+  order_date: "",
+  order_number: "",
+  po_date: "",
+  do_number: "",
+  delivery_date: "",
+  customer_name: "",
+  size: "",
+  material_type: "",
+  print_type: "",
+  specification: "",
+  unit: "Rim",
+  quantity: 0,
+  rim: 0,
+  price: 0,
+  delivery_completed_dates: Array(14).fill(null),
+  partial_billing_quantities: Array(14).fill(0),
+  total_keping: 0,
+  status: "OPEN",
+  notes: "",
+};
+
+function toNumber(value: unknown) {
+  const numberValue = Number(value || 0);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function normalizeStringDate(value?: string | null) {
+  return value && value.trim() !== "" ? value : null;
+}
+
+function normalizeArray<T>(values: T[] | undefined | null, defaultValue: T) {
+  const result = [...(values || [])].slice(0, 14);
+  while (result.length < 14) result.push(defaultValue);
+  return result;
+}
+
+function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload {
+  const partials = normalizeArray(form.partial_billing_quantities, 0).map((value) => toNumber(value));
+  const totalKeping = toNumber(form.total_keping) || partials.reduce((sum, value) => sum + value, 0);
+
+  return {
+    ...form,
+    order_date: normalizeStringDate(form.order_date),
+    po_date: normalizeStringDate(form.po_date),
+    delivery_date: normalizeStringDate(form.delivery_date),
+    quantity: toNumber(form.quantity),
+    rim: toNumber(form.rim),
+    price: toNumber(form.price),
+    delivery_completed_dates: normalizeArray(form.delivery_completed_dates, null).map(normalizeStringDate),
+    partial_billing_quantities: partials,
+    total_keping: totalKeping,
+  };
+}
 
 export default function CreatePurchaseOrderPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState<ProductionOrderPayload>(emptyForm);
+  const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState({
-    order_date: "",
-    order_number: "",
-    po_date: "",
-    material_po_number: "",
-    delivery_date: "",
-    customer_name: "",
-    size: "",
-    material_type: "",
-    print_type: "",
-    specification: "",
-    unit: "",
-    quantity: "",
-    rim: "",
-    price: "",
-    partial_billing_quantity: "",
-    total_quantity: "",
-    status: "PO_MASUK",
-    note: "",
-  });
+  const estimatedValue = useMemo(() => toNumber(form.quantity) * toNumber(form.price), [form.quantity, form.price]);
 
-  function handleChange(
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) {
-    const { name, value } = e.target;
+  const autoTotalKeping = useMemo(
+    () => normalizeArray(form.partial_billing_quantities, 0).reduce((sum, value) => sum + toNumber(value), 0),
+    [form.partial_billing_quantities]
+  );
 
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  function updateField<K extends keyof ProductionOrderPayload>(key: K, value: ProductionOrderPayload[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function updateDateColumn(index: number, value: string) {
+    setForm((prev) => {
+      const next = normalizeArray(prev.delivery_completed_dates, null);
+      next[index] = value || null;
+      return { ...prev, delivery_completed_dates: next };
+    });
+  }
+
+  function updatePartialColumn(index: number, value: number) {
+    setForm((prev) => {
+      const next = normalizeArray(prev.partial_billing_quantities, 0);
+      next[index] = value;
+      return { ...prev, partial_billing_quantities: next, total_keping: next.reduce((sum, item) => sum + toNumber(item), 0) };
+    });
+  }
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
-
+    setSaving(true);
     try {
-      await createProductionOrder({
-        order_date: form.order_date || null,
-        order_number: form.order_number,
-        po_date: form.po_date || null,
-        material_po_number: form.material_po_number || null,
-        delivery_date: form.delivery_date || null,
-
-        customer_id: null,
-        customer_name: form.customer_name || null,
-
-        size: form.size || null,
-        material_type: form.material_type || null,
-        print_type: form.print_type || null,
-        specification: form.specification || null,
-
-        unit: form.unit || null,
-        quantity: form.quantity ? Number(form.quantity) : 0,
-        rim: form.rim ? Number(form.rim) : 0,
-        price: form.price ? Number(form.price) : 0,
-        partial_billing_quantity: form.partial_billing_quantity
-          ? Number(form.partial_billing_quantity)
-          : 0,
-        total_quantity: form.total_quantity ? Number(form.total_quantity) : 0,
-
-        status: form.status,
-        note: form.note || null,
-      });
-
-      alert("Data BKOrder berhasil dibuat");
+      await createProductionOrder(normalizePayload(form));
       router.push("/purchase-orders");
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Gagal membuat BKOrder");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-bold">Tambah BKOrder / PO Masuk</h1>
-        <p className="text-sm text-gray-500">
-          Form input mengikuti kolom BKOrder dari file Excel client.
-        </p>
+        <h1 className="text-2xl font-bold text-gray-900">Tambah BKOrder</h1>
+        <p className="text-sm text-gray-500">Form input mengikuti header sheet BKOrder Excel client terbaru.</p>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-6 rounded-xl border bg-white p-6 shadow-sm"
-      >
-        <div>
-          <h2 className="mb-4 text-lg font-semibold">Data Order</h2>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Input
-              label="TGL"
-              name="order_date"
-              type="date"
-              value={form.order_date}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="NO.ORD"
-              name="order_number"
-              value={form.order_number}
-              onChange={handleChange}
-              required
-            />
-
-            <Input
-              label="PO Date"
-              name="po_date"
-              type="date"
-              value={form.po_date}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="PO Bahan"
-              name="material_po_number"
-              value={form.material_po_number}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="Deliv. Date"
-              name="delivery_date"
-              type="date"
-              value={form.delivery_date}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="PR"
-              name="customer_name"
-              value={form.customer_name}
-              onChange={handleChange}
-            />
+      <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border bg-white p-6 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium">TGL</label>
+            <input type="date" value={form.order_date || ""} onChange={(e) => updateField("order_date", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">NO.ORD</label>
+            <input value={form.order_number || ""} onChange={(e) => updateField("order_number", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">PO Date</label>
+            <input type="date" value={form.po_date || ""} onChange={(e) => updateField("po_date", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">DO NUMBER</label>
+            <input value={form.do_number || ""} onChange={(e) => updateField("do_number", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Deliv. Date</label>
+            <input type="date" value={form.delivery_date || ""} onChange={(e) => updateField("delivery_date", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">PR</label>
+            <input value={form.customer_name || ""} onChange={(e) => updateField("customer_name", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">UKURAN</label>
+            <input value={form.size || ""} onChange={(e) => updateField("size", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">JENIS BAHAN</label>
+            <input value={form.material_type || ""} onChange={(e) => updateField("material_type", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">JENIS CETAK</label>
+            <input value={form.print_type || ""} onChange={(e) => updateField("print_type", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div className="md:col-span-3">
+            <label className="mb-1 block text-sm font-medium">SPESIFIKASI</label>
+            <textarea value={form.specification || ""} onChange={(e) => updateField("specification", e.target.value)} className="min-h-20 w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">SAT</label>
+            <input value={form.unit || ""} onChange={(e) => updateField("unit", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">JUMLAH</label>
+            <input type="number" value={form.quantity || 0} onChange={(e) => updateField("quantity", Number(e.target.value))} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Rim</label>
+            <input type="number" step="0.01" value={form.rim || 0} onChange={(e) => updateField("rim", Number(e.target.value))} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">HARGA</label>
+            <input type="number" step="0.01" value={form.price || 0} onChange={(e) => updateField("price", Number(e.target.value))} className="w-full rounded-lg border px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">TOTAL (Keping)</label>
+            <input type="number" step="0.01" value={form.total_keping || 0} onChange={(e) => updateField("total_keping", Number(e.target.value))} className="w-full rounded-lg border px-3 py-2 text-sm" />
+            <p className="mt-1 text-xs text-gray-500">Auto dari Tagihan Parsial: {autoTotalKeping.toLocaleString("id-ID")}</p>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">STATUS</label>
+            <select value={form.status || "OPEN"} onChange={(e) => updateField("status", e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm">
+              <option value="OPEN">OPEN</option>
+              <option value="PROSES">PROSES</option>
+              <option value="SELESAI">SELESAI</option>
+              <option value="BATAL">BATAL</option>
+            </select>
           </div>
         </div>
 
-        <div>
-          <h2 className="mb-4 text-lg font-semibold">Spesifikasi Produksi</h2>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Input
-              label="UKURAN"
-              name="size"
-              value={form.size}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="JENIS BAHAN"
-              name="material_type"
-              value={form.material_type}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="JENIS CETAK"
-              name="print_type"
-              value={form.print_type}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="SAT"
-              name="unit"
-              value={form.unit}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="mt-4">
-            <Textarea
-              label="SPESIFIKASI"
-              name="specification"
-              value={form.specification}
-              onChange={handleChange}
-            />
+        <div className="space-y-3 rounded-xl border bg-gray-50 p-4">
+          <h2 className="font-semibold text-gray-900">TGL KIRIM / SELESAI</h2>
+          <div className="grid gap-3 md:grid-cols-7">
+            {REPEAT_COLUMNS.map((index) => (
+              <div key={index}>
+                <label className="mb-1 block text-xs font-medium">Tanggal {index + 1}</label>
+                <input type="date" value={form.delivery_completed_dates?.[index] || ""} onChange={(e) => updateDateColumn(index, e.target.value)} className="w-full rounded-lg border px-2 py-2 text-xs" />
+              </div>
+            ))}
           </div>
         </div>
 
-        <div>
-          <h2 className="mb-4 text-lg font-semibold">Jumlah dan Harga</h2>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-            <Input
-              label="JUMLAH"
-              name="quantity"
-              type="number"
-              value={form.quantity}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="Rim"
-              name="rim"
-              type="number"
-              value={form.rim}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="HARGA"
-              name="price"
-              type="number"
-              value={form.price}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="TAGIHAN PARSIAL"
-              name="partial_billing_quantity"
-              type="number"
-              value={form.partial_billing_quantity}
-              onChange={handleChange}
-            />
-
-            <Input
-              label="TOTAL"
-              name="total_quantity"
-              type="number"
-              value={form.total_quantity}
-              onChange={handleChange}
-            />
+        <div className="space-y-3 rounded-xl border bg-gray-50 p-4">
+          <h2 className="font-semibold text-gray-900">TAGIHAN PARSIAL (Keping)</h2>
+          <div className="grid gap-3 md:grid-cols-7">
+            {REPEAT_COLUMNS.map((index) => (
+              <div key={index}>
+                <label className="mb-1 block text-xs font-medium">Keping {index + 1}</label>
+                <input type="number" step="0.01" value={form.partial_billing_quantities?.[index] || 0} onChange={(e) => updatePartialColumn(index, Number(e.target.value))} className="w-full rounded-lg border px-2 py-2 text-xs" />
+              </div>
+            ))}
           </div>
         </div>
 
-        <div>
-          <h2 className="mb-4 text-lg font-semibold">Status</h2>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Select
-              label="STATUS"
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-              options={[
-                { label: "PO_MASUK", value: "PO_MASUK" },
-                { label: "BAHAN_DATANG", value: "BAHAN_DATANG" },
-                { label: "POTONG_CETAK", value: "POTONG_CETAK" },
-                { label: "FINISHING", value: "FINISHING" },
-                { label: "DIKIRIM", value: "DIKIRIM" },
-                { label: "INVOICE_TERBIT", value: "INVOICE_TERBIT" },
-                { label: "SELESAI", value: "SELESAI" },
-                { label: "CANCELLED", value: "CANCELLED" },
-              ]}
-            />
-          </div>
-
-          <div className="mt-4">
-            <Textarea
-              label="Catatan"
-              name="note"
-              value={form.note}
-              onChange={handleChange}
-            />
-          </div>
+        <div className="rounded-lg bg-gray-50 p-4 text-sm">
+          Estimasi Nilai: <span className="font-bold">{estimatedValue.toLocaleString("id-ID", { maximumFractionDigits: 2 })}</span>
         </div>
 
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
-          >
-            {loading ? "Menyimpan..." : "Simpan BKOrder"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => router.push("/purchase-orders")}
-            className="rounded-lg border px-5 py-2 hover:bg-gray-50"
-          >
-            Batal
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={() => router.push("/purchase-orders")} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50">Batal</button>
+          <button disabled={saving} type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+            {saving ? "Menyimpan..." : "Simpan BKOrder"}
           </button>
         </div>
       </form>
-    </div>
-  );
-}
-
-type InputProps = {
-  label: string;
-  name: string;
-  value: string;
-  type?: string;
-  required?: boolean;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-};
-
-function Input({
-  label,
-  name,
-  value,
-  type = "text",
-  required = false,
-  onChange,
-}: InputProps) {
-  return (
-    <div className="space-y-1">
-      <label className="text-sm font-medium">{label}</label>
-      <input
-        name={name}
-        type={type}
-        value={value}
-        required={required}
-        onChange={onChange}
-        className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500"
-      />
-    </div>
-  );
-}
-
-type SelectProps = {
-  label: string;
-  name: string;
-  value: string;
-  options: {
-    label: string;
-    value: string;
-  }[];
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-};
-
-function Select({ label, name, value, options, onChange }: SelectProps) {
-  return (
-    <div className="space-y-1">
-      <label className="text-sm font-medium">{label}</label>
-      <select
-        name={name}
-        value={value}
-        onChange={onChange}
-        className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-type TextareaProps = {
-  label: string;
-  name: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-};
-
-function Textarea({ label, name, value, onChange }: TextareaProps) {
-  return (
-    <div className="space-y-1">
-      <label className="text-sm font-medium">{label}</label>
-      <textarea
-        name={name}
-        value={value}
-        onChange={onChange}
-        rows={4}
-        className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500"
-      />
     </div>
   );
 }
