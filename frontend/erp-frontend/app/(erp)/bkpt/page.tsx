@@ -1,31 +1,117 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   deleteBKPtReceivable,
   getBKPtReceivables,
 } from "@/services/bkpt";
 import { BKPtReceivable } from "@/types/bkpt";
 
-function toNumber(value: number | string | null | undefined) {
+const MONTH_NAMES = [
+  "JANUARI",
+  "FEBRUARI",
+  "MARET",
+  "APRIL",
+  "MEI",
+  "JUNI",
+  "JULI",
+  "AGUSTUS",
+  "SEPTEMBER",
+  "OKTOBER",
+  "NOVEMBER",
+  "DESEMBER",
+];
+
+const MONTH_OPTIONS = [
+  { value: "1", label: "Januari" },
+  { value: "2", label: "Februari" },
+  { value: "3", label: "Maret" },
+  { value: "4", label: "April" },
+  { value: "5", label: "Mei" },
+  { value: "6", label: "Juni" },
+  { value: "7", label: "Juli" },
+  { value: "8", label: "Agustus" },
+  { value: "9", label: "September" },
+  { value: "10", label: "Oktober" },
+  { value: "11", label: "November" },
+  { value: "12", label: "Desember" },
+];
+
+type PaymentStatus = "LUNAS" | "PARSIAL" | "BELUM BAYAR" | "BELUM ADA PIUTANG";
+
+function toNumber(value: unknown) {
   const numberValue = Number(value || 0);
-  return Number.isNaN(numberValue) ? 0 : numberValue;
+  return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
-function formatCurrency(value: number | string | null | undefined) {
-  return toNumber(value).toLocaleString("id-ID");
+function toDate(value?: string | null) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "";
-  return new Date(value).toLocaleDateString("id-ID");
+  const date = toDate(value);
+
+  if (!date) return "";
+
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "2-digit",
+  });
 }
 
-function getPaymentStatus(item: BKPtReceivable) {
+function formatNumber(value: unknown) {
+  const numberValue = toNumber(value);
+
+  if (numberValue === 0) return "";
+
+  return numberValue.toLocaleString("id-ID", {
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatCurrency(value: unknown) {
+  const numberValue = toNumber(value);
+
+  if (numberValue === 0) return "";
+
+  return numberValue.toLocaleString("id-ID", {
+    maximumFractionDigits: 0,
+  });
+}
+
+function getMonthKey(value?: string | null) {
+  const date = toDate(value);
+
+  if (!date) return "TANPA_TANGGAL";
+
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function getMonthTitle(monthKey: string) {
+  if (monthKey === "TANPA_TANGGAL") {
+    return "BUKU PIUTANG TANPA TANGGAL";
+  }
+
+  const [year, month] = monthKey.split("-");
+  const monthName = MONTH_NAMES[Number(month) - 1];
+
+  return `BUKU PIUTANG ${monthName} ${year}`;
+}
+
+function getPaymentStatus(item: BKPtReceivable): PaymentStatus {
   const debet = toNumber(item.debet);
-  const saldo = toNumber(item.saldo);
+  const kredit = toNumber(item.kredit);
+  const pph21 = toNumber(item.pph_psl_21);
+  const pph23 = toNumber(item.pph_psl_23);
+  const saldo = toNumber(item.saldo) || debet - kredit - pph21 - pph23;
 
   if (debet <= 0) return "BELUM ADA PIUTANG";
   if (saldo <= 0) return "LUNAS";
@@ -34,48 +120,48 @@ function getPaymentStatus(item: BKPtReceivable) {
   return "BELUM BAYAR";
 }
 
-function getPaymentStatusClass(status: string) {
-  if (status === "LUNAS") {
-    return "bg-green-100 text-green-700 border-green-200";
-  }
+function getCalculatedSaldo(item: BKPtReceivable) {
+  const debet = toNumber(item.debet);
+  const kredit = toNumber(item.kredit);
+  const pph21 = toNumber(item.pph_psl_21);
+  const pph23 = toNumber(item.pph_psl_23);
 
-  if (status === "PARSIAL") {
-    return "bg-yellow-100 text-yellow-700 border-yellow-200";
-  }
-
-  if (status === "BELUM BAYAR") {
-    return "bg-red-100 text-red-700 border-red-200";
-  }
-
-  return "bg-gray-100 text-gray-700 border-gray-200";
+  return toNumber(item.saldo) || debet - kredit - pph21 - pph23;
 }
 
-function BKPtContent() {
+function getStatusClass(status: PaymentStatus) {
+  switch (status) {
+    case "LUNAS":
+      return "bg-emerald-100 text-emerald-700 ring-emerald-200";
+    case "PARSIAL":
+      return "bg-blue-100 text-blue-700 ring-blue-200";
+    case "BELUM BAYAR":
+      return "bg-amber-100 text-amber-700 ring-amber-200";
+    default:
+      return "bg-slate-100 text-slate-700 ring-slate-200";
+  }
+}
+
+function BKPtPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+
+  const noInvoiceFromQuery = searchParams.get("no_invoice") || "";
 
   const [data, setData] = useState<BKPtReceivable[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [customerName, setCustomerName] = useState("");
-  const [year, setYear] = useState("2023");
-  const [month, setMonth] = useState("");
-  const [noInvoice, setNoInvoice] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("");
+  const [customerFilter, setCustomerFilter] = useState("");
+  const [invoiceFilter, setInvoiceFilter] = useState(noInvoiceFromQuery);
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
 
-  async function loadData(customNoInvoice?: string) {
+  async function loadData() {
+    setLoading(true);
+
     try {
-      setLoading(true);
-
-      const selectedNoInvoice =
-        customNoInvoice !== undefined ? customNoInvoice : noInvoice;
-
-      const result = await getBKPtReceivables({
-        customer_name: customerName || undefined,
-        year: year || undefined,
-        month: month || undefined,
-        no_invoice: selectedNoInvoice || undefined,
-      });
-
+      const result = await getBKPtReceivables();
       setData(result);
     } finally {
       setLoading(false);
@@ -83,54 +169,102 @@ function BKPtContent() {
   }
 
   useEffect(() => {
-    const invoiceFromQuery = searchParams.get("no_invoice") || "";
+    loadData();
+  }, []);
 
-    if (invoiceFromQuery) {
-      setNoInvoice(invoiceFromQuery);
-      loadData(invoiceFromQuery);
-    } else {
-      loadData();
-    }
-  }, [searchParams]);
+  useEffect(() => {
+    setInvoiceFilter(noInvoiceFromQuery);
+  }, [noInvoiceFromQuery]);
 
-  async function handleDelete(id: number) {
-    const confirmDelete = window.confirm("Hapus data BKPt ini?");
+  const availableYears = useMemo(() => {
+    const years = data
+      .map((item) => toDate(item.tgl)?.getFullYear())
+      .filter(Boolean) as number[];
 
-    if (!confirmDelete) return;
-
-    await deleteBKPtReceivable(id);
-    await loadData();
-  }
+    return Array.from(new Set(years)).sort((a, b) => b - a);
+  }, [data]);
 
   const filteredData = useMemo(() => {
-    if (!paymentStatus) return data;
+    return data
+      .filter((item) => {
+        const date = toDate(item.tgl);
 
-    return data.filter((item) => {
-      return getPaymentStatus(item) === paymentStatus;
+        const matchCustomer =
+          !customerFilter ||
+          (item.customer_name || "")
+            .toLowerCase()
+            .includes(customerFilter.toLowerCase());
+
+        const matchInvoice =
+          !invoiceFilter ||
+          (item.no_invoice || "")
+            .toLowerCase()
+            .includes(invoiceFilter.toLowerCase());
+
+        const matchMonth =
+          !selectedMonth ||
+          Boolean(date && date.getMonth() + 1 === Number(selectedMonth));
+
+        const matchYear =
+          !selectedYear ||
+          Boolean(date && date.getFullYear() === Number(selectedYear));
+
+        const matchStatus =
+          !selectedStatus || getPaymentStatus(item) === selectedStatus;
+
+        return (
+          matchCustomer &&
+          matchInvoice &&
+          matchMonth &&
+          matchYear &&
+          matchStatus
+        );
+      })
+      .sort((a, b) => {
+        const dateA = toDate(a.tgl)?.getTime() || 0;
+        const dateB = toDate(b.tgl)?.getTime() || 0;
+
+        if (dateA !== dateB) return dateB - dateA;
+
+        return (b.id || 0) - (a.id || 0);
+      });
+  }, [
+    data,
+    customerFilter,
+    invoiceFilter,
+    selectedMonth,
+    selectedYear,
+    selectedStatus,
+  ]);
+
+  const groupedByMonth = useMemo(() => {
+    const map = new Map<string, BKPtReceivable[]>();
+
+    filteredData.forEach((item) => {
+      const key = getMonthKey(item.tgl);
+      const current = map.get(key) || [];
+
+      current.push(item);
+      map.set(key, current);
     });
-  }, [data, paymentStatus]);
 
-  const groupedData = useMemo(() => {
-    return filteredData.reduce<Record<string, BKPtReceivable[]>>((acc, item) => {
-      const key = item.customer_name || "Tanpa Langganan";
+    return Array.from(map.entries()).sort(([keyA], [keyB]) => {
+      if (keyA === "TANPA_TANGGAL") return 1;
+      if (keyB === "TANPA_TANGGAL") return -1;
 
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item);
-
-      return acc;
-    }, {});
+      return keyB.localeCompare(keyA);
+    });
   }, [filteredData]);
 
   const summary = useMemo(() => {
     return filteredData.reduce(
       (acc, item) => {
+        const status = getPaymentStatus(item);
+
         acc.totalDebet += toNumber(item.debet);
         acc.totalKredit += toNumber(item.kredit);
-        acc.totalPph21 += toNumber(item.pph_psl_21);
-        acc.totalPph23 += toNumber(item.pph_psl_23);
-        acc.totalSaldo += toNumber(item.saldo);
-
-        const status = getPaymentStatus(item);
+        acc.totalPph += toNumber(item.pph_psl_21) + toNumber(item.pph_psl_23);
+        acc.totalSaldo += getCalculatedSaldo(item);
 
         if (status === "LUNAS") acc.totalLunas += 1;
         if (status === "PARSIAL") acc.totalParsial += 1;
@@ -141,8 +275,7 @@ function BKPtContent() {
       {
         totalDebet: 0,
         totalKredit: 0,
-        totalPph21: 0,
-        totalPph23: 0,
+        totalPph: 0,
         totalSaldo: 0,
         totalLunas: 0,
         totalParsial: 0,
@@ -151,373 +284,441 @@ function BKPtContent() {
     );
   }, [filteredData]);
 
-  function resetInvoiceFilter() {
-    setNoInvoice("");
-    loadData("");
+  function resetFilters() {
+    setCustomerFilter("");
+    setInvoiceFilter("");
+    setSelectedMonth("");
+    setSelectedYear("");
+    setSelectedStatus("");
+  }
+
+  async function handleDelete(id: number) {
+    const confirmed = confirm("Yakin ingin menghapus data BKPt ini?");
+
+    if (!confirmed) return;
+
+    await deleteBKPtReceivable(id);
+    await loadData();
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="print:hidden flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">BKPt</h1>
-          <p className="text-sm text-gray-500">
-            Buku Piutang berdasarkan sheet BKPt Excel client.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => window.print()}
-            className="rounded bg-gray-700 px-4 py-2 text-white hover:bg-gray-800"
-          >
-            Cetak
-          </button>
-
-          <Link
-            href="/bkpt/create"
-            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            + Tambah BKPt
-          </Link>
-        </div>
-      </div>
-
-      <div className="print:hidden grid grid-cols-1 gap-3 md:grid-cols-4">
-        <div className="rounded border bg-white p-4">
-          <div className="text-sm text-gray-500">Total Piutang / DEBET</div>
-          <div className="mt-1 text-xl font-bold">
-            Rp {formatCurrency(summary.totalDebet)}
-          </div>
-        </div>
-
-        <div className="rounded border bg-white p-4">
-          <div className="text-sm text-gray-500">Total Pembayaran / KREDIT</div>
-          <div className="mt-1 text-xl font-bold">
-            Rp {formatCurrency(summary.totalKredit)}
-          </div>
-        </div>
-
-        <div className="rounded border bg-white p-4">
-          <div className="text-sm text-gray-500">Total Potongan PPh</div>
-          <div className="mt-1 text-xl font-bold">
-            Rp {formatCurrency(summary.totalPph21 + summary.totalPph23)}
-          </div>
-        </div>
-
-        <div className="rounded border bg-white p-4">
-          <div className="text-sm text-gray-500">Sisa SALDO</div>
-          <div className="mt-1 text-xl font-bold">
-            Rp {formatCurrency(summary.totalSaldo)}
-          </div>
-        </div>
-      </div>
-
-      <div className="print:hidden grid grid-cols-1 gap-3 rounded border bg-white p-4 md:grid-cols-6">
-        <input
-          value={customerName}
-          onChange={(e) => setCustomerName(e.target.value)}
-          placeholder="Cari LANGGANAN"
-          className="rounded border px-3 py-2"
-        />
-
-        <input
-          value={noInvoice}
-          onChange={(e) => setNoInvoice(e.target.value)}
-          placeholder="Cari NO. INVOICE"
-          className="rounded border px-3 py-2"
-        />
-
-        <select
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="rounded border px-3 py-2"
-        >
-          <option value="">Semua Bulan</option>
-          <option value="1">Januari</option>
-          <option value="2">Februari</option>
-          <option value="3">Maret</option>
-          <option value="4">April</option>
-          <option value="5">Mei</option>
-          <option value="6">Juni</option>
-          <option value="7">Juli</option>
-          <option value="8">Agustus</option>
-          <option value="9">September</option>
-          <option value="10">Oktober</option>
-          <option value="11">November</option>
-          <option value="12">Desember</option>
-        </select>
-
-        <input
-          value={year}
-          onChange={(e) => setYear(e.target.value)}
-          placeholder="Tahun"
-          className="rounded border px-3 py-2"
-        />
-
-        <select
-          value={paymentStatus}
-          onChange={(e) => setPaymentStatus(e.target.value)}
-          className="rounded border px-3 py-2"
-        >
-          <option value="">Semua Status</option>
-          <option value="LUNAS">LUNAS</option>
-          <option value="PARSIAL">PARSIAL</option>
-          <option value="BELUM BAYAR">BELUM BAYAR</option>
-        </select>
-
-        <button
-          onClick={() => loadData()}
-          className="rounded bg-black px-4 py-2 text-white hover:bg-gray-800"
-        >
-          Filter
-        </button>
-      </div>
-
-      {noInvoice && (
-        <div className="print:hidden flex items-center justify-between rounded border bg-white p-3 text-sm">
-          <div>
-            Filter NO. INVOICE aktif:{" "}
-            <span className="font-bold">{noInvoice}</span>
-          </div>
-
-          <button
-            onClick={resetInvoiceFilter}
-            className="rounded bg-gray-200 px-3 py-1 hover:bg-gray-300"
-          >
-            Reset Invoice
-          </button>
-        </div>
-      )}
-
-      <div className="print:hidden grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div
-          onClick={() => setPaymentStatus("LUNAS")}
-          className="cursor-pointer rounded border border-green-200 bg-green-50 p-3 text-sm text-green-700 hover:bg-green-100"
-        >
-          LUNAS: <span className="font-bold">{summary.totalLunas}</span>
-        </div>
-
-        <div
-          onClick={() => setPaymentStatus("PARSIAL")}
-          className="cursor-pointer rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700 hover:bg-yellow-100"
-        >
-          PARSIAL: <span className="font-bold">{summary.totalParsial}</span>
-        </div>
-
-        <div
-          onClick={() => setPaymentStatus("BELUM BAYAR")}
-          className="cursor-pointer rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700 hover:bg-red-100"
-        >
-          BELUM BAYAR:{" "}
-          <span className="font-bold">{summary.totalBelumBayar}</span>
-        </div>
-      </div>
-
-      {paymentStatus && (
-        <div className="print:hidden flex items-center justify-between rounded border bg-white p-3 text-sm">
-          <div>
-            Filter status aktif:{" "}
-            <span className="font-bold">{paymentStatus}</span>
-          </div>
-
-          <button
-            onClick={() => setPaymentStatus("")}
-            className="rounded bg-gray-200 px-3 py-1 hover:bg-gray-300"
-          >
-            Reset Status
-          </button>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="rounded border bg-white p-4">Loading data BKPt...</div>
-      ) : Object.keys(groupedData).length === 0 ? (
-        <div className="rounded border bg-white p-4">
-          Belum ada data BKPt.
-        </div>
-      ) : (
-        Object.entries(groupedData).map(([customer, rows]) => {
-          const totalDebet = rows.reduce(
-            (sum, item) => sum + toNumber(item.debet),
-            0
-          );
-
-          const totalKredit = rows.reduce(
-            (sum, item) => sum + toNumber(item.kredit),
-            0
-          );
-
-          const totalPph21 = rows.reduce(
-            (sum, item) => sum + toNumber(item.pph_psl_21),
-            0
-          );
-
-          const totalPph23 = rows.reduce(
-            (sum, item) => sum + toNumber(item.pph_psl_23),
-            0
-          );
-
-          const totalSaldo = rows.reduce(
-            (sum, item) => sum + toNumber(item.saldo),
-            0
-          );
-
-          return (
-            <div key={customer} className="overflow-hidden rounded border bg-white">
-              <div className="border-b bg-gray-100 p-3 text-center font-bold uppercase">
-                BUKU PIUTANG &quot;{customer}&quot; TH. {year || "2023"}
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="mx-auto space-y-6">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm print:shadow-none">
+          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 px-6 py-5 text-white">
+            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">
+                  Buku Piutang
+                </p>
+                <h1 className="mt-1 text-2xl font-bold">BKPt</h1>
+                <p className="mt-1 text-sm text-slate-300">
+                  Default menampilkan semua bulan, diurutkan dari bulan terbaru
+                  ke bulan sebelumnya.
+                </p>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="border px-2 py-2">TGL</th>
-                      <th className="border px-2 py-2">NO.ORDER</th>
-                      <th className="border px-2 py-2">NO. INVOICE</th>
-                      <th className="border px-2 py-2">FAKTUR</th>
-                      <th className="border px-2 py-2">PR</th>
-                      <th className="border px-2 py-2 text-right">DEBET</th>
-                      <th className="border px-2 py-2 text-right">KREDIT</th>
-                      <th className="border px-2 py-2 text-right">
-                        PPh Psl. 21
-                      </th>
-                      <th className="border px-2 py-2 text-right">
-                        PPh Psl. 23
-                      </th>
-                      <th className="border px-2 py-2 text-right">SALDO</th>
-                      <th className="border px-2 py-2">STATUS</th>
-                      <th className="border px-2 py-2">KETERANGAN</th>
-                      <th className="print:hidden border px-2 py-2">AKSI</th>
-                    </tr>
-                  </thead>
+              <div className="flex flex-wrap gap-2 print:hidden">
+                <button
+                  onClick={() => router.push("/bkpt/create")}
+                  className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100"
+                >
+                  + Tambah BKPt
+                </button>
 
-                  <tbody>
-                    {rows.map((item) => {
-                      const status = getPaymentStatus(item);
-
-                      return (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="border px-2 py-2">
-                            {formatDate(item.tgl)}
-                          </td>
-
-                          <td className="border px-2 py-2">
-                            {item.no_order}
-                          </td>
-
-                          <td className="border px-2 py-2">
-                            {item.no_invoice}
-                          </td>
-
-                          <td className="border px-2 py-2">
-                            {item.faktur}
-                          </td>
-
-                          <td className="border px-2 py-2">
-                            {item.pr}
-                          </td>
-
-                          <td className="border px-2 py-2 text-right">
-                            {formatCurrency(item.debet)}
-                          </td>
-
-                          <td className="border px-2 py-2 text-right">
-                            {formatCurrency(item.kredit)}
-                          </td>
-
-                          <td className="border px-2 py-2 text-right">
-                            {formatCurrency(item.pph_psl_21)}
-                          </td>
-
-                          <td className="border px-2 py-2 text-right">
-                            {formatCurrency(item.pph_psl_23)}
-                          </td>
-
-                          <td className="border px-2 py-2 text-right font-semibold">
-                            {formatCurrency(item.saldo)}
-                          </td>
-
-                          <td className="border px-2 py-2">
-                            <span
-                              className={`inline-block rounded border px-2 py-1 text-xs font-semibold ${getPaymentStatusClass(
-                                status
-                              )}`}
-                            >
-                              {status}
-                            </span>
-                          </td>
-
-                          <td className="border px-2 py-2">
-                            {item.keterangan}
-                          </td>
-
-                          <td className="print:hidden border px-2 py-2">
-                            <div className="flex flex-wrap gap-2">
-                              <Link
-                                href={`/bkpt/${item.id}`}
-                                className="rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"
-                              >
-                                Edit Bayar
-                              </Link>
-
-                              <button
-                                onClick={() => handleDelete(item.id)}
-                                className="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
-                              >
-                                Hapus
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-
-                    <tr className="bg-gray-50 font-bold">
-                      <td colSpan={5} className="border px-2 py-2 text-right">
-                        TOTAL
-                      </td>
-
-                      <td className="border px-2 py-2 text-right">
-                        {formatCurrency(totalDebet)}
-                      </td>
-
-                      <td className="border px-2 py-2 text-right">
-                        {formatCurrency(totalKredit)}
-                      </td>
-
-                      <td className="border px-2 py-2 text-right">
-                        {formatCurrency(totalPph21)}
-                      </td>
-
-                      <td className="border px-2 py-2 text-right">
-                        {formatCurrency(totalPph23)}
-                      </td>
-
-                      <td className="border px-2 py-2 text-right">
-                        {formatCurrency(totalSaldo)}
-                      </td>
-
-                      <td className="border px-2 py-2" />
-                      <td className="border px-2 py-2" />
-                      <td className="print:hidden border px-2 py-2" />
-                    </tr>
-                  </tbody>
-                </table>
+                <button
+                  onClick={() => window.print()}
+                  className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+                >
+                  Cetak
+                </button>
               </div>
             </div>
-          );
-        })
-      )}
+          </div>
+
+          <div className="grid gap-4 p-5 md:grid-cols-4 print:hidden">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Total Piutang / Debet
+              </p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">
+                {formatCurrency(summary.totalDebet) || "-"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Total Pembayaran
+              </p>
+              <p className="mt-2 text-2xl font-bold text-emerald-800">
+                {formatCurrency(summary.totalKredit) || "-"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                Total Potongan PPh
+              </p>
+              <p className="mt-2 text-2xl font-bold text-blue-800">
+                {formatCurrency(summary.totalPph) || "-"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Sisa Saldo
+              </p>
+              <p className="mt-2 text-2xl font-bold text-amber-800">
+                {formatCurrency(summary.totalSaldo) || "-"}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 border-t border-slate-100 px-5 py-4 md:grid-cols-3 print:hidden">
+            <button
+              onClick={() => setSelectedStatus("LUNAS")}
+              className={`rounded-2xl border p-4 text-left transition ${
+                selectedStatus === "LUNAS"
+                  ? "border-emerald-300 bg-emerald-100"
+                  : "border-slate-200 bg-white hover:bg-slate-50"
+              }`}
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Lunas
+              </p>
+              <p className="mt-1 text-xl font-bold text-emerald-700">
+                {summary.totalLunas}
+              </p>
+            </button>
+
+            <button
+              onClick={() => setSelectedStatus("PARSIAL")}
+              className={`rounded-2xl border p-4 text-left transition ${
+                selectedStatus === "PARSIAL"
+                  ? "border-blue-300 bg-blue-100"
+                  : "border-slate-200 bg-white hover:bg-slate-50"
+              }`}
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Parsial
+              </p>
+              <p className="mt-1 text-xl font-bold text-blue-700">
+                {summary.totalParsial}
+              </p>
+            </button>
+
+            <button
+              onClick={() => setSelectedStatus("BELUM BAYAR")}
+              className={`rounded-2xl border p-4 text-left transition ${
+                selectedStatus === "BELUM BAYAR"
+                  ? "border-amber-300 bg-amber-100"
+                  : "border-slate-200 bg-white hover:bg-slate-50"
+              }`}
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Belum Bayar
+              </p>
+              <p className="mt-1 text-xl font-bold text-amber-700">
+                {summary.totalBelumBayar}
+              </p>
+            </button>
+          </div>
+
+          <div className="grid gap-3 border-t border-slate-100 px-5 py-4 lg:grid-cols-6 print:hidden">
+            <input
+              value={customerFilter}
+              onChange={(e) => setCustomerFilter(e.target.value)}
+              placeholder="Cari Langganan / PR..."
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 lg:col-span-2"
+            />
+
+            <input
+              value={invoiceFilter}
+              onChange={(e) => setInvoiceFilter(e.target.value)}
+              placeholder="Cari No. Invoice..."
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            />
+
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            >
+              <option value="">Semua Bulan</option>
+              {MONTH_OPTIONS.map((month) => (
+                <option key={month.value} value={month.value}>
+                  {month.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            >
+              <option value="">Semua Tahun</option>
+              {availableYears.map((year) => (
+                <option key={year} value={String(year)}>
+                  {year}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={resetFilters}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Reset Filter
+            </button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+            Memuat data BKPt...
+          </div>
+        ) : groupedByMonth.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+            Belum ada data BKPt yang cocok dengan filter.
+          </div>
+        ) : (
+          groupedByMonth.map(([monthKey, rows]) => {
+            const monthSummary = rows.reduce(
+              (acc, item) => {
+                acc.debet += toNumber(item.debet);
+                acc.kredit += toNumber(item.kredit);
+                acc.pph +=
+                  toNumber(item.pph_psl_21) + toNumber(item.pph_psl_23);
+                acc.saldo += getCalculatedSaldo(item);
+                return acc;
+              },
+              {
+                debet: 0,
+                kredit: 0,
+                pph: 0,
+                saldo: 0,
+              }
+            );
+
+            return (
+              <div
+                key={monthKey}
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+              >
+                <div className="flex flex-col justify-between gap-3 border-b border-slate-100 bg-white px-5 py-4 md:flex-row md:items-center">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                      Periode
+                    </p>
+                    <h2 className="mt-1 text-lg font-bold text-slate-900">
+                      {getMonthTitle(monthKey)}
+                    </h2>
+                  </div>
+
+                  <div className="grid gap-2 text-xs text-slate-600 md:grid-cols-4">
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <span className="block text-slate-400">Debet</span>
+                      <b>{formatCurrency(monthSummary.debet) || "-"}</b>
+                    </div>
+
+                    <div className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-700">
+                      <span className="block text-emerald-500">Kredit</span>
+                      <b>{formatCurrency(monthSummary.kredit) || "-"}</b>
+                    </div>
+
+                    <div className="rounded-xl bg-blue-50 px-3 py-2 text-blue-700">
+                      <span className="block text-blue-500">PPh</span>
+                      <b>{formatCurrency(monthSummary.pph) || "-"}</b>
+                    </div>
+
+                    <div className="rounded-xl bg-amber-50 px-3 py-2 text-amber-700">
+                      <span className="block text-amber-500">Saldo</span>
+                      <b>{formatCurrency(monthSummary.saldo) || "-"}</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-[1500px] border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-800 text-white">
+                        <th className="border border-slate-700 px-3 py-3 text-left">
+                          TGL
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-left">
+                          NO.ORDER
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-left">
+                          NO. INVOICE
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-left">
+                          FAKTUR
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-left">
+                          PR
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-right">
+                          DEBET
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-right">
+                          KREDIT
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-right">
+                          PPh Psl. 21
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-right">
+                          PPh Psl. 23
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-right">
+                          SALDO
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-left">
+                          KETERANGAN
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-left">
+                          STATUS
+                        </th>
+                        <th className="border border-slate-700 px-3 py-3 text-center print:hidden">
+                          AKSI
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {rows.map((item) => {
+                        const status = getPaymentStatus(item);
+                        const saldo = getCalculatedSaldo(item);
+
+                        return (
+                          <tr
+                            key={item.id}
+                            className="bg-white transition hover:bg-slate-50"
+                          >
+                            <td className="border border-slate-200 px-3 py-2 text-slate-700">
+                              {formatDate(item.tgl)}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 font-medium text-slate-900">
+                              {item.no_order}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                              {item.no_invoice}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 text-slate-700">
+                              {item.faktur}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 text-slate-700">
+                              {item.pr || item.customer_name}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 text-right font-medium text-slate-900">
+                              {formatCurrency(item.debet)}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 text-right text-emerald-700">
+                              {formatCurrency(item.kredit)}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 text-right text-blue-700">
+                              {formatCurrency(item.pph_psl_21)}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 text-right text-blue-700">
+                              {formatCurrency(item.pph_psl_23)}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 text-right font-bold text-amber-700">
+                              {formatCurrency(saldo)}
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 text-slate-600">
+                              <div className="max-w-[260px] whitespace-normal leading-relaxed">
+                                {item.keterangan}
+                              </div>
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${getStatusClass(
+                                  status
+                                )}`}
+                              >
+                                {status}
+                              </span>
+                            </td>
+
+                            <td className="border border-slate-200 px-3 py-2 text-center print:hidden">
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  onClick={() => router.push(`/bkpt/${item.id}`)}
+                                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Edit Bayar
+                                </button>
+
+                                <button
+                                  onClick={() => handleDelete(item.id)}
+                                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
+                                >
+                                  Hapus
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+
+                    <tfoot>
+                      <tr className="bg-slate-100 font-bold text-slate-900">
+                        <td
+                          colSpan={5}
+                          className="border border-slate-300 px-3 py-3 text-right"
+                        >
+                          TOTAL {getMonthTitle(monthKey)}
+                        </td>
+
+                        <td className="border border-slate-300 px-3 py-3 text-right">
+                          {formatCurrency(monthSummary.debet)}
+                        </td>
+
+                        <td className="border border-slate-300 px-3 py-3 text-right text-emerald-700">
+                          {formatCurrency(monthSummary.kredit)}
+                        </td>
+
+                        <td
+                          colSpan={2}
+                          className="border border-slate-300 px-3 py-3 text-right text-blue-700"
+                        >
+                          {formatCurrency(monthSummary.pph)}
+                        </td>
+
+                        <td className="border border-slate-300 px-3 py-3 text-right text-amber-700">
+                          {formatCurrency(monthSummary.saldo)}
+                        </td>
+
+                        <td colSpan={3} className="border border-slate-300 px-3 py-3" />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
 
 export default function BKPtPage() {
   return (
-    <Suspense fallback={<div className="p-6">Loading halaman BKPt...</div>}>
-      <BKPtContent />
+    <Suspense fallback={<div className="p-6">Memuat halaman BKPt...</div>}>
+      <BKPtPageContent />
     </Suspense>
   );
 }
