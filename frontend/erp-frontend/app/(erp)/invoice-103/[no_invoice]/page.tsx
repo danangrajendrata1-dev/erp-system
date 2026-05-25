@@ -32,7 +32,9 @@ export default function Invoice103DetailPage() {
     async function loadData() {
       try {
         setLoading(true);
+
         const result = await getInvoice103ByNoInvoice(noInvoice);
+
         setData(result);
       } finally {
         setLoading(false);
@@ -41,6 +43,21 @@ export default function Invoice103DetailPage() {
 
     loadData();
   }, [noInvoice]);
+
+  function handleMasukBKPt() {
+    if (!data) return;
+
+    const query = new URLSearchParams({
+      customer_name: data.langganan || "",
+      tgl: data.tgl || "",
+      no_invoice: data.no_invoice || "",
+      faktur: data.no_faktur || "",
+      debet: String(data.total_piutang_dagang || 0),
+      keterangan: `Piutang dari Invoice 103 ${data.no_invoice}`,
+    });
+
+    router.push(`/bkpt/create?${query.toString()}`);
+  }
 
   if (loading) {
     return <div className="p-6">Loading invoice...</div>;
@@ -51,13 +68,14 @@ export default function Invoice103DetailPage() {
       <div className="p-6">
         <div className="rounded border bg-white p-6">
           <h1 className="text-xl font-bold">Invoice tidak ditemukan</h1>
+
           <p className="mt-2 text-sm text-gray-500">
             Data invoice dengan nomor {noInvoice} tidak ditemukan di 103.
           </p>
 
           <button
             onClick={() => router.push("/invoice-103")}
-            className="mt-4 rounded bg-gray-800 px-4 py-2 text-white"
+            className="mt-4 rounded bg-gray-800 px-4 py-2 text-white hover:bg-gray-900"
           >
             Kembali
           </button>
@@ -68,7 +86,7 @@ export default function Invoice103DetailPage() {
 
   return (
     <div className="bg-gray-100 p-6 print:bg-white print:p-0">
-      <div className="print:hidden mb-4 flex gap-2">
+      <div className="print:hidden mb-4 flex flex-wrap gap-2">
         <button
           onClick={() => router.push("/invoice-103")}
           className="rounded bg-gray-200 px-4 py-2 hover:bg-gray-300"
@@ -81,6 +99,13 @@ export default function Invoice103DetailPage() {
           className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
         >
           Cetak
+        </button>
+
+        <button
+          onClick={handleMasukBKPt}
+          className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+        >
+          + Masuk BKPt
         </button>
       </div>
 
@@ -99,10 +124,12 @@ export default function Invoice103DetailPage() {
                 <span className="font-semibold">No. Invoice: </span>
                 {data.no_invoice}
               </div>
+
               <div>
                 <span className="font-semibold">No. Faktur: </span>
                 {data.no_faktur || "-"}
               </div>
+
               <div>
                 <span className="font-semibold">Tanggal: </span>
                 {formatDate(data.tgl)}
@@ -145,17 +172,27 @@ export default function Invoice103DetailPage() {
                   <td className="border px-3 py-2 text-center">
                     {index + 1}
                   </td>
-                  <td className="border px-3 py-2">{item.no_ord || ""}</td>
+
+                  <td className="border px-3 py-2">
+                    {item.no_ord || ""}
+                  </td>
+
                   <td className="border px-3 py-2">
                     {item.jenis_cetak || ""}
                   </td>
+
                   <td className="border px-3 py-2 text-right">
                     {formatCurrency(item.jml)}
                   </td>
-                  <td className="border px-3 py-2">{item.sat || ""}</td>
+
+                  <td className="border px-3 py-2">
+                    {item.sat || ""}
+                  </td>
+
                   <td className="border px-3 py-2 text-right">
                     {formatCurrency(item.harga)}
                   </td>
+
                   <td className="border px-3 py-2 text-right">
                     {formatCurrency(item.dpp)}
                   </td>

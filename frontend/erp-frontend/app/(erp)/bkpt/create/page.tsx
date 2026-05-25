@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createBKPtReceivable } from "@/services/bkpt";
 
-export default function CreateBKPtPage() {
+function CreateBKPtContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [form, setForm] = useState({
     customer_name: "",
@@ -22,15 +23,66 @@ export default function CreateBKPtPage() {
     keterangan: "",
   });
 
+  useEffect(() => {
+    const customerName = searchParams.get("customer_name") || "";
+    const tgl = searchParams.get("tgl") || "";
+    const noInvoice = searchParams.get("no_invoice") || "";
+    const faktur = searchParams.get("faktur") || "";
+    const debet = searchParams.get("debet") || "";
+    const keterangan = searchParams.get("keterangan") || "";
+
+    if (
+      customerName ||
+      tgl ||
+      noInvoice ||
+      faktur ||
+      debet ||
+      keterangan
+    ) {
+      setForm((prev) => ({
+        ...prev,
+        customer_name: customerName,
+        tgl: tgl ? tgl.slice(0, 10) : "",
+        no_invoice: noInvoice,
+        faktur,
+        debet,
+        saldo: debet,
+        keterangan,
+      }));
+    }
+  }, [searchParams]);
+
+  function calculateSaldo(nextForm: typeof form) {
+    const debet = Number(nextForm.debet || 0);
+    const kredit = Number(nextForm.kredit || 0);
+    const pph21 = Number(nextForm.pph_psl_21 || 0);
+    const pph23 = Number(nextForm.pph_psl_23 || 0);
+
+    return String(debet - kredit - pph21 - pph23);
+  }
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
     const { name, value } = e.target;
 
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => {
+      const nextForm = {
+        ...prev,
+        [name]: value,
+      };
+
+      if (
+        name === "debet" ||
+        name === "kredit" ||
+        name === "pph_psl_21" ||
+        name === "pph_psl_23"
+      ) {
+        nextForm.saldo = calculateSaldo(nextForm);
+      }
+
+      return nextForm;
+    });
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -63,9 +115,15 @@ export default function CreateBKPtPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded border bg-white p-6">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 rounded border bg-white p-6"
+      >
         <div>
-          <label className="mb-1 block text-sm font-medium">LANGGANAN</label>
+          <label className="mb-1 block text-sm font-medium">
+            LANGGANAN
+          </label>
+
           <input
             name="customer_name"
             value={form.customer_name}
@@ -78,6 +136,7 @@ export default function CreateBKPtPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div>
             <label className="mb-1 block text-sm font-medium">TGL</label>
+
             <input
               type="date"
               name="tgl"
@@ -88,7 +147,10 @@ export default function CreateBKPtPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">NO.ORDER</label>
+            <label className="mb-1 block text-sm font-medium">
+              NO.ORDER
+            </label>
+
             <input
               name="no_order"
               value={form.no_order}
@@ -98,7 +160,10 @@ export default function CreateBKPtPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">NO. INVOICE</label>
+            <label className="mb-1 block text-sm font-medium">
+              NO. INVOICE
+            </label>
+
             <input
               name="no_invoice"
               value={form.no_invoice}
@@ -109,6 +174,7 @@ export default function CreateBKPtPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">FAKTUR</label>
+
             <input
               name="faktur"
               value={form.faktur}
@@ -120,6 +186,7 @@ export default function CreateBKPtPage() {
 
         <div>
           <label className="mb-1 block text-sm font-medium">PR</label>
+
           <input
             name="pr"
             value={form.pr}
@@ -131,6 +198,7 @@ export default function CreateBKPtPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
           <div>
             <label className="mb-1 block text-sm font-medium">DEBET</label>
+
             <input
               type="number"
               name="debet"
@@ -142,6 +210,7 @@ export default function CreateBKPtPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">KREDIT</label>
+
             <input
               type="number"
               name="kredit"
@@ -152,7 +221,10 @@ export default function CreateBKPtPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">PPh Psl. 21</label>
+            <label className="mb-1 block text-sm font-medium">
+              PPh Psl. 21
+            </label>
+
             <input
               type="number"
               name="pph_psl_21"
@@ -163,7 +235,10 @@ export default function CreateBKPtPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">PPh Psl. 23</label>
+            <label className="mb-1 block text-sm font-medium">
+              PPh Psl. 23
+            </label>
+
             <input
               type="number"
               name="pph_psl_23"
@@ -175,6 +250,7 @@ export default function CreateBKPtPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">SALDO</label>
+
             <input
               type="number"
               name="saldo"
@@ -186,7 +262,10 @@ export default function CreateBKPtPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">KETERANGAN</label>
+          <label className="mb-1 block text-sm font-medium">
+            KETERANGAN
+          </label>
+
           <textarea
             name="keterangan"
             value={form.keterangan}
@@ -214,5 +293,15 @@ export default function CreateBKPtPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function CreateBKPtPage() {
+  return (
+    <Suspense
+      fallback={<div className="p-6">Loading halaman tambah BKPt...</div>}
+    >
+      <CreateBKPtContent />
+    </Suspense>
   );
 }
