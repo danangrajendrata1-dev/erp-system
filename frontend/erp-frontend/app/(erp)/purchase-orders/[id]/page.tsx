@@ -112,7 +112,7 @@ export default function EditPurchaseOrderPage() {
   }, [params.id]);
 
   const autoTotalKeping = useMemo(() => {
-    const values = normalizeArray<number | string | null | undefined>(
+    const values = normalizeArray<number | string | null>(
       form?.partial_billing_quantities,
       null
     );
@@ -155,27 +155,27 @@ export default function EditPurchaseOrderPage() {
   }
 
   function updatePartialColumn(index: number, value: string) {
-    setForm((prev) => {
-      if (!prev) return prev;
+  setForm((prev) => {
+    if (!prev) return prev;
 
-      const next = normalizeArray<number | null | undefined>(
-        prev.partial_billing_quantities,
-        null
-      );
+    const next: (number | null)[] = normalizeArray<number | null>(
+      prev.partial_billing_quantities ?? null,
+      null
+    );
 
-      next[index] = value === "" ? null : Number(value);
+    next[index] = value === "" ? null : Number(value);
 
-      const totalKeping = next.reduce<number>((sum, item) => {
-        return sum + toNumber(item);
-      }, 0);
+    const totalKeping = next.reduce<number>((sum, item) => {
+      return sum + toNumber(item);
+    }, 0);
 
-      return {
-        ...prev,
-        partial_billing_quantities: next,
-        total_keping: totalKeping,
-      };
-    });
-  }
+    return {
+      ...prev,
+      partial_billing_quantities: next,
+      total_keping: totalKeping,
+    };
+  });
+}
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

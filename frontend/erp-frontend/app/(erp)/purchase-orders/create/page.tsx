@@ -50,7 +50,7 @@ function numberInputValue(value: unknown) {
 }
 
 function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload {
-  const partials = normalizeArray<number | null | undefined>(
+  const partials = normalizeArray<number | null>(
     form.partial_billing_quantities,
     null
   ).map((value) => toNumber(value));
@@ -83,7 +83,7 @@ export default function CreatePurchaseOrderPage() {
   const [saving, setSaving] = useState(false);
 
   const autoTotalKeping = useMemo(() => {
-    const values = normalizeArray<number | string | null | undefined>(
+    const values = normalizeArray<number | string | null>(
       form.partial_billing_quantities,
       null
     );
@@ -119,26 +119,28 @@ export default function CreatePurchaseOrderPage() {
     });
   }
 
-  function updatePartialColumn(index: number, value: string) {
-    setForm((prev) => {
-      const next = normalizeArray<number | null | undefined>(
-        prev.partial_billing_quantities,
-        null
-      );
+ function updatePartialColumn(index: number, value: string) {
+  setForm((prev) => {
+    if (!prev) return prev;
 
-      next[index] = value === "" ? null : Number(value);
+    const next = normalizeArray<number | null>(
+      prev.partial_billing_quantities,
+      null
+    );
 
-      const totalKeping = next.reduce<number>((sum, item) => {
-        return sum + toNumber(item);
-      }, 0);
+    next[index] = value === "" ? null : Number(value);
 
-      return {
-        ...prev,
-        partial_billing_quantities: next,
-        total_keping: totalKeping,
-      };
-    });
-  }
+    const totalKeping = next.reduce<number>((sum, item) => {
+      return sum + toNumber(item);
+    }, 0);
+
+    return {
+      ...prev,
+      partial_billing_quantities: next,
+      total_keping: totalKeping,
+    };
+  });
+}
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
