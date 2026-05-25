@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getInvoice103ByNoInvoice } from "@/services/invoice103";
+import { getBKPtReceivables } from "@/services/bkpt";
 import { Invoice103Group } from "@/types/invoice103";
 
 function toNumber(value: number | string | null | undefined) {
@@ -27,15 +28,21 @@ export default function Invoice103DetailPage() {
 
   const [data, setData] = useState<Invoice103Group | null>(null);
   const [loading, setLoading] = useState(true);
+  const [alreadyInBKPt, setAlreadyInBKPt] = useState(false);
 
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
 
-        const result = await getInvoice103ByNoInvoice(noInvoice);
+        const invoiceResult = await getInvoice103ByNoInvoice(noInvoice);
+        setData(invoiceResult);
 
-        setData(result);
+        const bkptResult = await getBKPtReceivables({
+          no_invoice: noInvoice,
+        });
+
+        setAlreadyInBKPt(bkptResult.length > 0);
       } finally {
         setLoading(false);
       }
@@ -45,7 +52,7 @@ export default function Invoice103DetailPage() {
   }, [noInvoice]);
 
   function handleMasukBKPt() {
-    if (!data) return;
+    if (!data || alreadyInBKPt) return;
 
     const query = new URLSearchParams({
       customer_name: data.langganan || "",
@@ -101,13 +108,28 @@ export default function Invoice103DetailPage() {
           Cetak
         </button>
 
-        <button
-          onClick={handleMasukBKPt}
-          className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-        >
-          + Masuk BKPt
-        </button>
+        {alreadyInBKPt ? (
+          <button
+            disabled
+            className="cursor-not-allowed rounded bg-gray-400 px-4 py-2 text-white"
+          >
+            Sudah Masuk BKPt
+          </button>
+        ) : (
+          <button
+            onClick={handleMasukBKPt}
+            className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+          >
+            + Masuk BKPt
+          </button>
+        )}
       </div>
+
+      {alreadyInBKPt && (
+        <div className="print:hidden mb-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+          Invoice ini sudah tercatat di BKPt / Buku Piutang.
+        </div>
+      )}
 
       <div className="mx-auto min-h-[1000px] max-w-4xl bg-white p-10 shadow print:min-h-0 print:max-w-none print:p-0 print:shadow-none">
         <div className="border-b pb-4">
@@ -134,6 +156,12 @@ export default function Invoice103DetailPage() {
                 <span className="font-semibold">Tanggal: </span>
                 {formatDate(data.tgl)}
               </div>
+
+              {alreadyInBKPt && (
+                <div className="mt-2 inline-block rounded bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">
+                  Sudah Masuk BKPt
+                </div>
+              )}
             </div>
           </div>
         </div>
