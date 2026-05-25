@@ -92,6 +92,21 @@ function sortBKOrder(a: ProductionOrder, b: ProductionOrder) {
   return a.id - b.id;
 }
 
+function getStatusClass(status?: string | null) {
+  switch (status) {
+    case "SELESAI":
+      return "bg-emerald-100 text-emerald-700 ring-emerald-200";
+    case "PROSES":
+      return "bg-blue-100 text-blue-700 ring-blue-200";
+    case "BATAL":
+      return "bg-red-100 text-red-700 ring-red-200";
+    case "OPEN":
+      return "bg-amber-100 text-amber-700 ring-amber-200";
+    default:
+      return "bg-slate-100 text-slate-700 ring-slate-200";
+  }
+}
+
 export default function PurchaseOrdersPage() {
   const router = useRouter();
 
@@ -116,7 +131,6 @@ export default function PurchaseOrdersPage() {
 
   const filteredData = useMemo(() => {
     const keyword = search.toLowerCase().trim();
-
     const sorted = [...data].sort(sortBKOrder);
 
     if (!keyword) return sorted;
@@ -192,361 +206,386 @@ export default function PurchaseOrdersPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">BKOrder</h1>
-          <p className="text-sm text-gray-500">
-            Buku order sesuai format Excel client. Satu PO bisa berisi banyak
-            baris order.
-          </p>
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="mx-auto space-y-6">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm print:shadow-none">
+          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 px-6 py-5 text-white">
+            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">
+                  Buku Order
+                </p>
+                <h1 className="mt-1 text-2xl font-bold">BKOrder</h1>
+                <p className="mt-1 text-sm text-slate-300">
+                  Satu PO bisa berisi banyak baris order seperti format Excel client.
+                </p>
+              </div>
+
+              <button
+                onClick={() => router.push("/purchase-orders/create")}
+                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100 print:hidden"
+              >
+                + Tambah PO / BKOrder
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-5 md:grid-cols-3 print:hidden">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Total Order Keping
+              </p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">
+                {summary.totalOrderKeping === 0
+                  ? "-"
+                  : summary.totalOrderKeping.toLocaleString("id-ID")}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Total Terkirim
+              </p>
+              <p className="mt-2 text-2xl font-bold text-emerald-800">
+                {summary.totalTerkirim === 0
+                  ? "-"
+                  : summary.totalTerkirim.toLocaleString("id-ID")}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Total Kekurangan
+              </p>
+              <p className="mt-2 text-2xl font-bold text-amber-800">
+                {summary.totalKekurangan === 0
+                  ? "-"
+                  : summary.totalKekurangan.toLocaleString("id-ID")}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 md:flex-row md:items-center md:justify-between print:hidden">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari NO.ORD, PO, PR, bahan, jenis cetak, spesifikasi..."
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 md:max-w-xl"
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={loadData}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Refresh
+              </button>
+
+              <button
+                onClick={() => window.print()}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Cetak
+              </button>
+            </div>
+          </div>
         </div>
 
-        <button
-          onClick={() => router.push("/purchase-orders/create")}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          + Tambah PO / BKOrder
-        </button>
-      </div>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-[2800px] border-collapse text-xs">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-slate-800 text-white">
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    TGL
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    NO.ORD
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    PO Date
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    PO
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    Deliv. Date
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    PR
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    UKURAN
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    JENIS BAHAN
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    JENIS CETAK
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    SPESIFIKASI
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    SAT
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
+                    KEPING
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
+                    Rim
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
+                    HARGA
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
+                    KEKURANGAN
+                  </th>
+                  <th colSpan={14} className="border border-slate-700 px-3 py-3 text-center">
+                    TGL KIRIM / SELESAI
+                  </th>
+                  <th colSpan={14} className="border border-slate-700 px-3 py-3 text-center">
+                    TAGIHAN PARSIAL (Keping)
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
+                    TOTAL (Keping)
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                    STATUS
+                  </th>
+                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-center print:hidden">
+                    AKSI
+                  </th>
+                </tr>
 
-      <div className="grid gap-4 md:grid-cols-3 print:hidden">
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Total Order Keping</p>
-          <p className="mt-1 text-xl font-bold">
-            {summary.totalOrderKeping === 0
-              ? "-"
-              : summary.totalOrderKeping.toLocaleString("id-ID")}
-          </p>
-        </div>
+                <tr className="bg-slate-700 text-white">
+                  {REPEAT_COLUMNS.map((index) => (
+                    <th key={`date-head-${index}`} className="border border-slate-600 px-2 py-2">
+                      {index + 1}
+                    </th>
+                  ))}
 
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Total Terkirim</p>
-          <p className="mt-1 text-xl font-bold">
-            {summary.totalTerkirim === 0
-              ? "-"
-              : summary.totalTerkirim.toLocaleString("id-ID")}
-          </p>
-        </div>
+                  {REPEAT_COLUMNS.map((index) => (
+                    <th key={`partial-head-${index}`} className="border border-slate-600 px-2 py-2">
+                      {index + 1}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Total Kekurangan</p>
-          <p className="mt-1 text-xl font-bold">
-            {summary.totalKekurangan === 0
-              ? "-"
-              : summary.totalKekurangan.toLocaleString("id-ID")}
-          </p>
-        </div>
-      </div>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={46} className="border px-3 py-10 text-center text-slate-500">
+                      Memuat data BKOrder...
+                    </td>
+                  </tr>
+                ) : groupedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={46} className="border px-3 py-10 text-center text-slate-500">
+                      Belum ada data BKOrder.
+                    </td>
+                  </tr>
+                ) : (
+                  groupedData.map((group) => {
+                    return group.rows.map((item, rowIndex) => {
+                      const isFirstRow = rowIndex === 0;
+                      const rowSpan = group.rows.length;
 
-      <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between print:hidden">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Cari NO.ORD, PO, PR, jenis bahan, jenis cetak..."
-          className="w-full rounded-lg border px-3 py-2 text-sm md:max-w-xl"
-        />
+                      const deliveryDates = normalizeArray(
+                        item.delivery_completed_dates,
+                        null
+                      );
 
-        <button
-          onClick={() => window.print()}
-          className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-        >
-          Cetak
-        </button>
-      </div>
+                      const partials = normalizeArray(
+                        item.partial_billing_quantities,
+                        null
+                      );
 
-      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-        <table className="min-w-[2700px] border-collapse text-xs">
-          <thead>
-            <tr className="bg-gray-100 text-gray-900">
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                TGL
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                NO.ORD
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                PO Date
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                PO
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                Deliv. Date
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                PR
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                UKURAN
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                JENIS BAHAN
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                JENIS CETAK
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                SPESIFIKASI
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                SAT
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-right">
-                KEPING
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-right">
-                Rim
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-right">
-                HARGA
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-right">
-                KEKURANGAN
-              </th>
-              <th colSpan={14} className="border px-2 py-2 text-center">
-                TGL KIRIM/SELESAI
-              </th>
-              <th colSpan={14} className="border px-2 py-2 text-center">
-                TAGIHAN PARSIAL (Keping)
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-right">
-                TOTAL (Keping)
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-left">
-                STATUS
-              </th>
-              <th rowSpan={2} className="border px-2 py-2 text-center print:hidden">
-                AKSI
-              </th>
-            </tr>
+                      const totalKeping = getTotalKeping(item);
+                      const kekurangan = getKekurangan(item);
 
-            <tr className="bg-gray-50 text-gray-700">
-              {REPEAT_COLUMNS.map((index) => (
-                <th key={`date-head-${index}`} className="border px-2 py-2">
-                  {index + 1}
-                </th>
-              ))}
+                      return (
+                        <tr
+                          key={item.id}
+                          className={
+                            isFirstRow
+                              ? "border-t-4 border-t-slate-300 bg-white hover:bg-slate-50"
+                              : "bg-white hover:bg-slate-50"
+                          }
+                        >
+                          {isFirstRow && (
+                            <>
+                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top font-medium text-slate-700">
+                                {formatDate(group.header.order_date)}
+                              </td>
 
-              {REPEAT_COLUMNS.map((index) => (
-                <th key={`partial-head-${index}`} className="border px-2 py-2">
-                  {index + 1}
-                </th>
-              ))}
-            </tr>
-          </thead>
+                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top font-semibold text-slate-900">
+                                {group.header.order_number}
+                              </td>
 
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={46} className="border px-3 py-6 text-center">
-                  Memuat data BKOrder...
-                </td>
-              </tr>
-            ) : groupedData.length === 0 ? (
-              <tr>
-                <td colSpan={46} className="border px-3 py-6 text-center">
-                  Belum ada data BKOrder.
-                </td>
-              </tr>
-            ) : (
-              groupedData.map((group) => {
-                return group.rows.map((item, rowIndex) => {
-                  const isFirstRow = rowIndex === 0;
-                  const rowSpan = group.rows.length;
+                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top text-slate-700">
+                                {formatDate(group.header.po_date)}
+                              </td>
 
-                  const deliveryDates = normalizeArray(
-                    item.delivery_completed_dates,
-                    null
-                  );
+                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top font-semibold text-slate-900">
+                                {group.header.do_number}
+                              </td>
 
-                  const partials = normalizeArray(
-                    item.partial_billing_quantities,
-                    null
-                  );
+                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top text-slate-700">
+                                {formatDate(group.header.delivery_date)}
+                              </td>
 
-                  const totalKeping = getTotalKeping(item);
-                  const kekurangan = getKekurangan(item);
+                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top">
+                                <div className="min-w-[170px]">
+                                  <div className="font-semibold text-slate-900">
+                                    {group.header.customer_name}
+                                  </div>
 
-                  return (
-                    <tr
-                      key={item.id}
-                      className={
-                        isFirstRow
-                          ? "border-t-2 border-t-gray-400 hover:bg-gray-50"
-                          : "hover:bg-gray-50"
-                      }
-                    >
-                      {isFirstRow && (
-                        <>
-                          <td
-                            rowSpan={rowSpan}
-                            className="border px-2 py-2 align-top"
-                          >
-                            {formatDate(group.header.order_date)}
+                                  <div className="mt-1 text-[11px] text-slate-500">
+                                    {group.rows.length} baris order
+                                  </div>
+
+                                  <button
+                                    onClick={() =>
+                                      router.push(
+                                        `/purchase-orders/create?copyFrom=${group.header.id}`
+                                      )
+                                    }
+                                    className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-blue-700 print:hidden"
+                                  >
+                                    + Tambah Order
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+
+                          <td className="border border-slate-200 px-3 py-2 text-slate-700">
+                            {item.size}
                           </td>
 
-                          <td
-                            rowSpan={rowSpan}
-                            className="border px-2 py-2 align-top font-medium"
-                          >
-                            {group.header.order_number}
+                          <td className="border border-slate-200 px-3 py-2 text-slate-700">
+                            {item.material_type}
                           </td>
 
-                          <td
-                            rowSpan={rowSpan}
-                            className="border px-2 py-2 align-top"
-                          >
-                            {formatDate(group.header.po_date)}
+                          <td className="border border-slate-200 px-3 py-2 text-slate-700">
+                            {item.print_type}
                           </td>
 
-                          <td
-                            rowSpan={rowSpan}
-                            className="border px-2 py-2 align-top"
-                          >
-                            {group.header.do_number}
-                          </td>
-
-                          <td
-                            rowSpan={rowSpan}
-                            className="border px-2 py-2 align-top"
-                          >
-                            {formatDate(group.header.delivery_date)}
-                          </td>
-
-                          <td
-                            rowSpan={rowSpan}
-                            className="border px-2 py-2 align-top"
-                          >
-                            <div className="font-medium">
-                              {group.header.customer_name}
+                          <td className="border border-slate-200 px-3 py-2 text-slate-700">
+                            <div className="max-w-[240px] whitespace-normal leading-relaxed">
+                              {item.specification}
                             </div>
-
-                            <button
-                              onClick={() =>
-                                router.push(
-                                  `/purchase-orders/create?copyFrom=${group.header.id}`
-                                )
-                              }
-                              className="mt-2 rounded bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 print:hidden"
-                            >
-                              + Tambah Order di PO ini
-                            </button>
                           </td>
-                        </>
-                      )}
 
-                      <td className="border px-2 py-2">{item.size}</td>
+                          <td className="border border-slate-200 px-3 py-2 text-slate-700">
+                            {item.unit}
+                          </td>
 
-                      <td className="border px-2 py-2">
-                        {item.material_type}
-                      </td>
+                          <td className="border border-slate-200 px-3 py-2 text-right font-medium text-slate-900">
+                            {formatNumber(item.quantity)}
+                          </td>
 
-                      <td className="border px-2 py-2">{item.print_type}</td>
+                          <td className="border border-slate-200 px-3 py-2 text-right text-slate-700">
+                            {formatNumber(item.rim)}
+                          </td>
 
-                      <td className="border px-2 py-2">
-                        {item.specification}
-                      </td>
+                          <td className="border border-slate-200 px-3 py-2 text-right text-slate-700">
+                            {formatCurrency(item.price)}
+                          </td>
 
-                      <td className="border px-2 py-2">{item.unit}</td>
+                          <td className="border border-slate-200 px-3 py-2 text-right font-semibold text-amber-700">
+                            {formatNumber(kekurangan)}
+                          </td>
 
-                      <td className="border px-2 py-2 text-right">
-                        {formatNumber(item.quantity)}
-                      </td>
+                          {deliveryDates.map((dateValue, index) => (
+                            <td
+                              key={`date-${item.id}-${index}`}
+                              className="border border-slate-200 px-2 py-2 text-center text-red-600"
+                            >
+                              {formatDate(dateValue)}
+                            </td>
+                          ))}
 
-                      <td className="border px-2 py-2 text-right">
-                        {formatNumber(item.rim)}
-                      </td>
+                          {partials.map((partialValue, index) => (
+                            <td
+                              key={`partial-${item.id}-${index}`}
+                              className="border border-slate-200 px-2 py-2 text-right text-slate-700"
+                            >
+                              {formatNumber(partialValue)}
+                            </td>
+                          ))}
 
-                      <td className="border px-2 py-2 text-right">
-                        {formatCurrency(item.price)}
-                      </td>
+                          <td className="border border-slate-200 px-3 py-2 text-right font-bold text-slate-900">
+                            {formatNumber(totalKeping)}
+                          </td>
 
-                      <td className="border px-2 py-2 text-right font-semibold">
-                        {formatNumber(kekurangan)}
-                      </td>
+                          <td className="border border-slate-200 px-3 py-2">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${getStatusClass(
+                                item.status
+                              )}`}
+                            >
+                              {item.status || "-"}
+                            </span>
+                          </td>
 
-                      {deliveryDates.map((dateValue, index) => (
-                        <td
-                          key={`date-${item.id}-${index}`}
-                          className="border px-2 py-2 text-center"
-                        >
-                          {formatDate(dateValue)}
-                        </td>
-                      ))}
+                          <td className="border border-slate-200 px-3 py-2 text-center print:hidden">
+                            <div className="flex justify-center gap-2">
+                              <button
+                                onClick={() =>
+                                  router.push(`/purchase-orders/${item.id}`)
+                                }
+                                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                              >
+                                Edit
+                              </button>
 
-                      {partials.map((partialValue, index) => (
-                        <td
-                          key={`partial-${item.id}-${index}`}
-                          className="border px-2 py-2 text-right"
-                        >
-                          {formatNumber(partialValue)}
-                        </td>
-                      ))}
+                              <button
+                                onClick={() => handleDelete(item.id)}
+                                className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })
+                )}
+              </tbody>
 
-                      <td className="border px-2 py-2 text-right font-semibold">
-                        {formatNumber(totalKeping)}
-                      </td>
+              <tfoot>
+                <tr className="bg-slate-100 font-bold text-slate-900">
+                  <td colSpan={11} className="border border-slate-300 px-3 py-3 text-right">
+                    TOTAL
+                  </td>
 
-                      <td className="border px-2 py-2">
-                        <span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold">
-                          {item.status || "-"}
-                        </span>
-                      </td>
+                  <td className="border border-slate-300 px-3 py-3 text-right">
+                    {formatNumber(summary.totalOrderKeping)}
+                  </td>
 
-                      <td className="border px-2 py-2 text-center print:hidden">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() =>
-                              router.push(`/purchase-orders/${item.id}`)
-                            }
-                            className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
-                          >
-                            Edit
-                          </button>
+                  <td className="border border-slate-300 px-3 py-3" />
+                  <td className="border border-slate-300 px-3 py-3" />
 
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                });
-              })
-            )}
-          </tbody>
+                  <td className="border border-slate-300 px-3 py-3 text-right text-amber-700">
+                    {formatNumber(summary.totalKekurangan)}
+                  </td>
 
-          <tfoot>
-            <tr className="bg-gray-100 font-semibold">
-              <td colSpan={11} className="border px-2 py-2 text-right">
-                TOTAL
-              </td>
+                  <td colSpan={28} className="border border-slate-300 px-3 py-3" />
 
-              <td className="border px-2 py-2 text-right">
-                {formatNumber(summary.totalOrderKeping)}
-              </td>
+                  <td className="border border-slate-300 px-3 py-3 text-right">
+                    {formatNumber(summary.totalTerkirim)}
+                  </td>
 
-              <td className="border px-2 py-2" />
-              <td className="border px-2 py-2" />
-
-              <td className="border px-2 py-2 text-right">
-                {formatNumber(summary.totalKekurangan)}
-              </td>
-
-              <td colSpan={28} className="border px-2 py-2" />
-
-              <td className="border px-2 py-2 text-right">
-                {formatNumber(summary.totalTerkirim)}
-              </td>
-
-              <td colSpan={2} className="border px-2 py-2" />
-            </tr>
-          </tfoot>
-        </table>
+                  <td colSpan={2} className="border border-slate-300 px-3 py-3" />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
