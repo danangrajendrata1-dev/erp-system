@@ -1,5 +1,7 @@
 export type NullableDate = string | null;
 
+export type NullableNumber = number | null;
+
 export interface ProductionOrder {
   id: number;
 
@@ -16,13 +18,13 @@ export interface ProductionOrder {
   specification?: string | null;
 
   unit?: string | null;
-  quantity?: number | null;
-  rim?: number | null;
-  price?: number | null;
+  quantity?: NullableNumber;
+  rim?: NullableNumber;
+  price?: NullableNumber;
 
   delivery_completed_dates?: NullableDate[] | null;
-  partial_billing_quantities?: number[] | null;
-  total_keping?: number | null;
+  partial_billing_quantities?: NullableNumber[] | null;
+  total_keping?: NullableNumber;
 
   status?: string | null;
   notes?: string | null;
@@ -45,13 +47,13 @@ export interface ProductionOrderPayload {
   specification?: string | null;
 
   unit?: string | null;
-  quantity?: number | null;
-  rim?: number | null;
-  price?: number | null;
+  quantity?: NullableNumber;
+  rim?: NullableNumber;
+  price?: NullableNumber;
 
   delivery_completed_dates?: NullableDate[] | null;
-  partial_billing_quantities?: number[] | null;
-  total_keping?: number | null;
+  partial_billing_quantities?: NullableNumber[] | null;
+  total_keping?: NullableNumber;
 
   status?: string | null;
   notes?: string | null;

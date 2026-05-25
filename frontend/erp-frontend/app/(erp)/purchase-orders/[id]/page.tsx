@@ -27,14 +27,20 @@ function normalizeArray<T>(values: T[] | undefined | null, defaultValue: T) {
   return result;
 }
 
+function numberInputValue(value: unknown) {
+  const numberValue = toNumber(value);
+  return numberValue === 0 ? "" : String(numberValue);
+}
+
 function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload {
-  const partials = normalizeArray(form.partial_billing_quantities, 0).map((value) =>
-    toNumber(value)
-  );
+  const partials = normalizeArray<number | null | undefined>(
+    form.partial_billing_quantities,
+    null
+  ).map((value) => toNumber(value));
 
   const totalKeping =
     toNumber(form.total_keping) ||
-    partials.reduce<number>((sum, value) => sum + value, 0);
+    partials.reduce<number>((sum, value) => sum + toNumber(value), 0);
 
   return {
     ...form,
@@ -80,19 +86,21 @@ export default function EditPurchaseOrderPage() {
           print_type: data.print_type || "",
           specification: data.specification || "",
           unit: data.unit || "Rim",
-          quantity: toNumber(data.quantity),
-          rim: toNumber(data.rim),
-          price: toNumber(data.price),
+          quantity: toNumber(data.quantity) || null,
+          rim: toNumber(data.rim) || null,
+          price: toNumber(data.price) || null,
           delivery_completed_dates: normalizeArray(
             data.delivery_completed_dates?.map(toDateInput),
             null
           ),
           partial_billing_quantities: normalizeArray(
-            data.partial_billing_quantities?.map((value) => toNumber(value)),
-            0
+            data.partial_billing_quantities?.map((value) =>
+              toNumber(value) || null
+            ),
+            null
           ),
-          total_keping: toNumber(data.total_keping),
-          status: data.status || "OPEN",
+          total_keping: toNumber(data.total_keping) || null,
+          status: data.status || "PO_MASUK",
           notes: data.notes || "",
         });
       } finally {
@@ -103,20 +111,20 @@ export default function EditPurchaseOrderPage() {
     loadData();
   }, [params.id]);
 
-  const estimatedValue = useMemo(() => {
-    return toNumber(form?.quantity) * toNumber(form?.price);
-  }, [form?.quantity, form?.price]);
-
   const autoTotalKeping = useMemo(() => {
     const values = normalizeArray<number | string | null | undefined>(
       form?.partial_billing_quantities,
-      0
+      null
     );
 
     return values.reduce<number>((sum, value) => {
       return sum + toNumber(value);
     }, 0);
   }, [form?.partial_billing_quantities]);
+
+  const kekurangan = useMemo(() => {
+    return Math.max(toNumber(form?.quantity) - autoTotalKeping, 0);
+  }, [form?.quantity, autoTotalKeping]);
 
   function updateField<K extends keyof ProductionOrderPayload>(
     key: K,
@@ -146,12 +154,16 @@ export default function EditPurchaseOrderPage() {
     });
   }
 
-  function updatePartialColumn(index: number, value: number) {
+  function updatePartialColumn(index: number, value: string) {
     setForm((prev) => {
       if (!prev) return prev;
 
-      const next = normalizeArray(prev.partial_billing_quantities, 0);
-      next[index] = value;
+      const next = normalizeArray<number | null | undefined>(
+        prev.partial_billing_quantities,
+        null
+      );
+
+      next[index] = value === "" ? null : Number(value);
 
       const totalKeping = next.reduce<number>((sum, item) => {
         return sum + toNumber(item);
@@ -193,7 +205,7 @@ export default function EditPurchaseOrderPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Edit BKOrder</h1>
         <p className="text-sm text-gray-500">
-          Ubah data BKOrder sesuai header Excel client terbaru.
+          Ubah data BKOrder sesuai format Excel client.
         </p>
       </div>
 
@@ -309,16 +321,23 @@ export default function EditPurchaseOrderPage() {
               value={form.unit || ""}
               onChange={(e) => updateField("unit", e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Rim / Keping"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">JUMLAH</label>
+            <label className="mb-1 block text-sm font-medium">KEPING</label>
             <input
               type="number"
-              value={form.quantity || 0}
-              onChange={(e) => updateField("quantity", Number(e.target.value))}
+              value={numberInputValue(form.quantity)}
+              onChange={(e) =>
+                updateField(
+                  "quantity",
+                  e.target.value === "" ? null : Number(e.target.value)
+                )
+              }
               className="w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Kosongkan jika belum diisi"
             />
           </div>
 
@@ -327,9 +346,15 @@ export default function EditPurchaseOrderPage() {
             <input
               type="number"
               step="0.01"
-              value={form.rim || 0}
-              onChange={(e) => updateField("rim", Number(e.target.value))}
+              value={numberInputValue(form.rim)}
+              onChange={(e) =>
+                updateField(
+                  "rim",
+                  e.target.value === "" ? null : Number(e.target.value)
+                )
+              }
               className="w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Kosongkan jika belum diisi"
             />
           </div>
 
@@ -338,9 +363,27 @@ export default function EditPurchaseOrderPage() {
             <input
               type="number"
               step="0.01"
-              value={form.price || 0}
-              onChange={(e) => updateField("price", Number(e.target.value))}
+              value={numberInputValue(form.price)}
+              onChange={(e) =>
+                updateField(
+                  "price",
+                  e.target.value === "" ? null : Number(e.target.value)
+                )
+              }
               className="w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Kosongkan jika belum diisi"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              KEKURANGAN
+            </label>
+            <input
+              value={kekurangan === 0 ? "" : kekurangan.toLocaleString("id-ID")}
+              readOnly
+              className="w-full rounded-lg border bg-gray-100 px-3 py-2 text-sm"
+              placeholder="Otomatis"
             />
           </div>
 
@@ -351,22 +394,28 @@ export default function EditPurchaseOrderPage() {
             <input
               type="number"
               step="0.01"
-              value={form.total_keping || 0}
+              value={numberInputValue(form.total_keping)}
               onChange={(e) =>
-                updateField("total_keping", Number(e.target.value))
+                updateField(
+                  "total_keping",
+                  e.target.value === "" ? null : Number(e.target.value)
+                )
               }
               className="w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Otomatis dari tagihan parsial"
             />
             <p className="mt-1 text-xs text-gray-500">
               Auto dari Tagihan Parsial:{" "}
-              {autoTotalKeping.toLocaleString("id-ID")}
+              {autoTotalKeping === 0
+                ? "-"
+                : autoTotalKeping.toLocaleString("id-ID")}
             </p>
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium">STATUS</label>
             <select
-              value={form.status || "OPEN"}
+              value={form.status || "PO_MASUK"}
               onChange={(e) => updateField("status", e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm"
             >
@@ -415,24 +464,16 @@ export default function EditPurchaseOrderPage() {
                 <input
                   type="number"
                   step="0.01"
-                  value={form.partial_billing_quantities?.[index] || 0}
-                  onChange={(e) =>
-                    updatePartialColumn(index, Number(e.target.value))
-                  }
+                  value={numberInputValue(
+                    form.partial_billing_quantities?.[index]
+                  )}
+                  onChange={(e) => updatePartialColumn(index, e.target.value)}
                   className="w-full rounded-lg border px-2 py-2 text-xs"
+                  placeholder=""
                 />
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="rounded-lg bg-gray-50 p-4 text-sm">
-          Estimasi Nilai:{" "}
-          <span className="font-bold">
-            {estimatedValue.toLocaleString("id-ID", {
-              maximumFractionDigits: 2,
-            })}
-          </span>
         </div>
 
         <div className="flex justify-end gap-2">

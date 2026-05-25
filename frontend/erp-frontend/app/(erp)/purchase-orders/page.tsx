@@ -25,13 +25,21 @@ function toNumber(value: unknown) {
 }
 
 function formatNumber(value: unknown) {
-  return toNumber(value).toLocaleString("id-ID", {
+  const numberValue = toNumber(value);
+
+  if (numberValue === 0) return "";
+
+  return numberValue.toLocaleString("id-ID", {
     maximumFractionDigits: 2,
   });
 }
 
 function formatCurrency(value: unknown) {
-  return toNumber(value).toLocaleString("id-ID", {
+  const numberValue = toNumber(value);
+
+  if (numberValue === 0) return "";
+
+  return numberValue.toLocaleString("id-ID", {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
@@ -42,6 +50,20 @@ function normalizeArray<T>(values: T[] | undefined | null, defaultValue: T) {
   const result = [...(values || [])].slice(0, 14);
   while (result.length < 14) result.push(defaultValue);
   return result;
+}
+
+function getTotalKeping(item: ProductionOrder) {
+  const partials = normalizeArray(item.partial_billing_quantities, null);
+
+  const partialTotal = partials.reduce<number>((sum, value) => {
+    return sum + toNumber(value);
+  }, 0);
+
+  return toNumber(item.total_keping) || partialTotal;
+}
+
+function getKekurangan(item: ProductionOrder) {
+  return Math.max(toNumber(item.quantity) - getTotalKeping(item), 0);
 }
 
 export default function PurchaseOrdersPage() {
@@ -92,15 +114,15 @@ export default function PurchaseOrdersPage() {
   const summary = useMemo(() => {
     return filteredData.reduce(
       (acc, item) => {
-        acc.totalJumlah += toNumber(item.quantity);
-        acc.totalKeping += toNumber(item.total_keping);
-        acc.totalNilai += toNumber(item.quantity) * toNumber(item.price);
+        acc.totalOrderKeping += toNumber(item.quantity);
+        acc.totalTerkirim += getTotalKeping(item);
+        acc.totalKekurangan += getKekurangan(item);
         return acc;
       },
       {
-        totalJumlah: 0,
-        totalKeping: 0,
-        totalNilai: 0,
+        totalOrderKeping: 0,
+        totalTerkirim: 0,
+        totalKekurangan: 0,
       }
     );
   }, [filteredData]);
@@ -132,30 +154,36 @@ export default function PurchaseOrdersPage() {
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 print:hidden">
         <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Total JUMLAH</p>
+          <p className="text-sm text-gray-500">Total Order Keping</p>
           <p className="mt-1 text-xl font-bold">
-            {formatNumber(summary.totalJumlah)}
+            {summary.totalOrderKeping === 0
+              ? "-"
+              : summary.totalOrderKeping.toLocaleString("id-ID")}
           </p>
         </div>
 
         <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Total Keping</p>
+          <p className="text-sm text-gray-500">Total Terkirim</p>
           <p className="mt-1 text-xl font-bold">
-            {formatNumber(summary.totalKeping)}
+            {summary.totalTerkirim === 0
+              ? "-"
+              : summary.totalTerkirim.toLocaleString("id-ID")}
           </p>
         </div>
 
         <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Estimasi Nilai</p>
+          <p className="text-sm text-gray-500">Total Kekurangan</p>
           <p className="mt-1 text-xl font-bold">
-            {formatCurrency(summary.totalNilai)}
+            {summary.totalKekurangan === 0
+              ? "-"
+              : summary.totalKekurangan.toLocaleString("id-ID")}
           </p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between print:hidden">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -165,14 +193,14 @@ export default function PurchaseOrdersPage() {
 
         <button
           onClick={() => window.print()}
-          className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50 print:hidden"
+          className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
         >
           Cetak
         </button>
       </div>
 
       <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-        <table className="min-w-[2600px] border-collapse text-xs">
+        <table className="min-w-[2700px] border-collapse text-xs">
           <thead>
             <tr className="bg-gray-100 text-gray-900">
               <th rowSpan={2} className="border px-2 py-2 text-left">
@@ -209,13 +237,16 @@ export default function PurchaseOrdersPage() {
                 SAT
               </th>
               <th rowSpan={2} className="border px-2 py-2 text-right">
-                JUMLAH
+                KEPING
               </th>
               <th rowSpan={2} className="border px-2 py-2 text-right">
                 Rim
               </th>
               <th rowSpan={2} className="border px-2 py-2 text-right">
                 HARGA
+              </th>
+              <th rowSpan={2} className="border px-2 py-2 text-right">
+                KEKURANGAN
               </th>
               <th colSpan={14} className="border px-2 py-2 text-center">
                 TGL KIRIM / SELESAI
@@ -252,13 +283,13 @@ export default function PurchaseOrdersPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={45} className="border px-3 py-6 text-center">
+                <td colSpan={46} className="border px-3 py-6 text-center">
                   Memuat data BKOrder...
                 </td>
               </tr>
             ) : filteredData.length === 0 ? (
               <tr>
-                <td colSpan={45} className="border px-3 py-6 text-center">
+                <td colSpan={46} className="border px-3 py-6 text-center">
                   Belum ada data BKOrder.
                 </td>
               </tr>
@@ -271,52 +302,72 @@ export default function PurchaseOrdersPage() {
 
                 const partials = normalizeArray(
                   item.partial_billing_quantities,
-                  0
+                  null
                 );
+
+                const totalKeping = getTotalKeping(item);
+                const kekurangan = getKekurangan(item);
 
                 return (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="border px-2 py-2">
                       {formatDate(item.order_date)}
                     </td>
+
                     <td className="border px-2 py-2 font-medium">
                       {item.order_number}
                     </td>
+
                     <td className="border px-2 py-2">
                       {formatDate(item.po_date)}
                     </td>
+
                     <td className="border px-2 py-2">
                       {item.do_number}
                     </td>
+
                     <td className="border px-2 py-2">
                       {formatDate(item.delivery_date)}
                     </td>
+
                     <td className="border px-2 py-2">
                       {item.customer_name}
                     </td>
+
                     <td className="border px-2 py-2">
                       {item.size}
                     </td>
+
                     <td className="border px-2 py-2">
                       {item.material_type}
                     </td>
+
                     <td className="border px-2 py-2">
                       {item.print_type}
                     </td>
+
                     <td className="border px-2 py-2">
                       {item.specification}
                     </td>
+
                     <td className="border px-2 py-2">
                       {item.unit}
                     </td>
+
                     <td className="border px-2 py-2 text-right">
                       {formatNumber(item.quantity)}
                     </td>
+
                     <td className="border px-2 py-2 text-right">
                       {formatNumber(item.rim)}
                     </td>
+
                     <td className="border px-2 py-2 text-right">
                       {formatCurrency(item.price)}
+                    </td>
+
+                    <td className="border px-2 py-2 text-right font-semibold">
+                      {formatNumber(kekurangan)}
                     </td>
 
                     {deliveryDates.map((dateValue, index) => (
@@ -333,14 +384,12 @@ export default function PurchaseOrdersPage() {
                         key={`partial-${item.id}-${index}`}
                         className="border px-2 py-2 text-right"
                       >
-                        {toNumber(partialValue)
-                          ? formatNumber(partialValue)
-                          : ""}
+                        {formatNumber(partialValue)}
                       </td>
                     ))}
 
                     <td className="border px-2 py-2 text-right font-semibold">
-                      {formatNumber(item.total_keping)}
+                      {formatNumber(totalKeping)}
                     </td>
 
                     <td className="border px-2 py-2">
@@ -379,17 +428,24 @@ export default function PurchaseOrdersPage() {
               <td colSpan={11} className="border px-2 py-2 text-right">
                 TOTAL
               </td>
+
               <td className="border px-2 py-2 text-right">
-                {formatNumber(summary.totalJumlah)}
+                {formatNumber(summary.totalOrderKeping)}
               </td>
+
               <td className="border px-2 py-2" />
+              <td className="border px-2 py-2" />
+
               <td className="border px-2 py-2 text-right">
-                {formatCurrency(summary.totalNilai)}
+                {formatNumber(summary.totalKekurangan)}
               </td>
+
               <td colSpan={28} className="border px-2 py-2" />
+
               <td className="border px-2 py-2 text-right">
-                {formatNumber(summary.totalKeping)}
+                {formatNumber(summary.totalTerkirim)}
               </td>
+
               <td colSpan={2} className="border px-2 py-2" />
             </tr>
           </tfoot>
