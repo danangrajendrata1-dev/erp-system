@@ -22,6 +22,7 @@ from app.models.shipment_model import Shipment
 from app.models.invoice_model import Invoice
 from app.models.sales_103_model import Sales103
 from app.models.bkpt_receivables_model import BKPtReceivable
+from app.models.bank_103_model import Bank103
 
 # =========================
 # IMPORT ROUTES
@@ -42,6 +43,7 @@ from app.api.routes.shipment_route import router as shipment_router
 from app.api.routes.invoice_route import router as invoice_router
 from app.api.routes.sales_103_route import router as sales_103_router
 from app.api.routes.bkpt_receivables_route import router as bkpt_receivables_router
+from app.api.routes.bank_103_route import router as bank_103_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -96,3 +98,4 @@ app.include_router(shipment_router)
 app.include_router(invoice_router)
 app.include_router(sales_103_router)
 app.include_router(bkpt_receivables_router)
+app.include_router(bank_103_router)
