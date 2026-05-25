@@ -7,6 +7,11 @@ import {
   getBKPtReceivables,
 } from "@/services/bkpt";
 import { BKPtReceivable } from "@/types/bkpt";
+import { Bank103 } from "@/types/bank103";
+import {
+  applyBank103ToBkpt,
+  getAvailableBkptPayments,
+} from "@/services/bank103";
 
 const MONTH_NAMES = [
   "JANUARI",
@@ -150,6 +155,12 @@ function BKPtPageContent() {
 
   const [data, setData] = useState<BKPtReceivable[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [bankModalOpen, setBankModalOpen] = useState(false);
+  const [selectedBkptId, setSelectedBkptId] = useState<number | null>(null);
+  const [availableBankPayments, setAvailableBankPayments] = useState<Bank103[]>([]);
+  const [loadingBankPayments, setLoadingBankPayments] = useState(false);
+  const [applyingBankPayment, setApplyingBankPayment] = useState(false);
 
   const [customerFilter, setCustomerFilter] = useState("");
   const [invoiceFilter, setInvoiceFilter] = useState(noInvoiceFromQuery);
@@ -299,6 +310,57 @@ function BKPtPageContent() {
 
     await deleteBKPtReceivable(id);
     await loadData();
+  }
+
+  async function openBank103Modal(bkptId: number) {
+    try {
+      setSelectedBkptId(bkptId);
+      setBankModalOpen(true);
+      setLoadingBankPayments(true);
+
+      const result = await getAvailableBkptPayments();
+      setAvailableBankPayments(result);
+    } catch (error) {
+      console.error(error);
+      alert("Gagal mengambil transaksi Bank 103 yang tersedia.");
+    } finally {
+      setLoadingBankPayments(false);
+    }
+  }
+
+  function closeBank103Modal() {
+    setBankModalOpen(false);
+    setSelectedBkptId(null);
+    setAvailableBankPayments([]);
+  }
+
+  async function handleApplyBank103(bankId: number) {
+    if (!selectedBkptId) {
+      alert("Data BKPt belum dipilih.");
+      return;
+    }
+
+    const confirmed = confirm(
+      "Yakin ingin mengambil transaksi Bank 103 ini untuk pembayaran BKPt?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setApplyingBankPayment(true);
+
+      await applyBank103ToBkpt(bankId, {
+        bkpt_receivable_id: selectedBkptId,
+      });
+
+      closeBank103Modal();
+      await loadData();
+    } catch (error) {
+      console.error(error);
+      alert("Gagal mengambil transaksi Bank 103 ke BKPt.");
+    } finally {
+      setApplyingBankPayment(false);
+    }
   }
 
   return (
@@ -652,13 +714,22 @@ function BKPtPageContent() {
                             </td>
 
                             <td className="border border-slate-200 px-3 py-2 text-center print:hidden">
-                              <div className="flex justify-center gap-2">
+                              <div className="flex flex-wrap justify-center gap-2">
                                 <button
                                   onClick={() => router.push(`/bkpt/${item.id}`)}
                                   className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                                 >
                                   Edit Bayar
                                 </button>
+
+                                {saldo > 0 && (
+                                  <button
+                                    onClick={() => openBank103Modal(item.id)}
+                                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                                  >
+                                    Ambil Bank 103
+                                  </button>
+                                )}
 
                                 <button
                                   onClick={() => handleDelete(item.id)}
@@ -711,6 +782,112 @@ function BKPtPageContent() {
           })
         )}
       </div>
+
+      {bankModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 print:hidden">
+          <div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b bg-slate-950 px-6 py-4 text-white">
+              <div>
+                <h2 className="text-xl font-bold">Ambil dari Bank 103</h2>
+                <p className="text-sm text-slate-300">
+                  Pilih transaksi Bank 103 dengan KODE BkPt, DEBET lebih dari 0,
+                  dan belum pernah dipakai ke BKPt.
+                </p>
+              </div>
+
+              <button
+                onClick={closeBank103Modal}
+                className="rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold hover:bg-white/20"
+              >
+                Tutup
+              </button>
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto p-6">
+              {loadingBankPayments ? (
+                <div className="rounded-xl border p-8 text-center text-slate-500">
+                  Memuat transaksi Bank 103...
+                </div>
+              ) : availableBankPayments.length === 0 ? (
+                <div className="rounded-xl border p-8 text-center text-slate-500">
+                  Tidak ada transaksi Bank 103 yang tersedia.
+                  <div className="mt-2 text-sm">
+                    Pastikan transaksi Bank 103 sudah diinput dengan KODE BkPt,
+                    DEBET lebih dari 0, dan belum dipakai ke BKPt.
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border">
+                  <table className="w-full min-w-[850px] border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
+                        <th className="border px-3 py-3">TGL</th>
+                        <th className="border px-3 py-3">KODE</th>
+                        <th className="border px-3 py-3">KETERANGAN</th>
+                        <th className="border px-3 py-3 text-right">DEBET</th>
+                        <th className="border px-3 py-3 text-right">KREDIT</th>
+                        <th className="border px-3 py-3 text-right">SALDO</th>
+                        <th className="border px-3 py-3 text-center">AKSI</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {availableBankPayments.map((bank) => (
+                        <tr key={bank.id} className="hover:bg-slate-50">
+                          <td className="border px-3 py-2">
+                            {formatDate(bank.tgl)}
+                          </td>
+
+                          <td className="border px-3 py-2 font-semibold">
+                            {bank.kode || ""}
+                          </td>
+
+                          <td className="border px-3 py-2">
+                            <div className="max-w-[320px] whitespace-normal leading-relaxed">
+                              {bank.keterangan || ""}
+                            </div>
+                          </td>
+
+                          <td className="border px-3 py-2 text-right font-semibold text-blue-700">
+                            {formatCurrency(bank.debet)}
+                          </td>
+
+                          <td className="border px-3 py-2 text-right">
+                            {formatCurrency(bank.kredit)}
+                          </td>
+
+                          <td className="border px-3 py-2 text-right">
+                            {formatCurrency(bank.saldo)}
+                          </td>
+
+                          <td className="border px-3 py-2 text-center">
+                            <button
+                              disabled={applyingBankPayment}
+                              onClick={() => handleApplyBank103(bank.id)}
+                              className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                            >
+                              {applyingBankPayment ? "Memproses..." : "Pakai"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end border-t px-6 py-4">
+              <button
+                onClick={closeBank103Modal}
+                className="rounded-xl border px-5 py-2 text-sm font-semibold hover:bg-slate-50"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

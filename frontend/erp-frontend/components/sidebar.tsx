@@ -32,29 +32,13 @@ export default function Sidebar() {
   };
 
   const menus = [
-    { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { title: "Production", href: "/production", icon: Factory },
-    { title: "Sales Order", href: "/sales-orders", icon: FileText },
-    { title: "Customers", href: "/customers", icon: Users },
-    { title: "Suppliers", href: "/suppliers", icon: Building2 },
-    { title: "Inventory / Bahan", href: "/inventory", icon: Package },
-    { title: "Products", href: "/products", icon: Package },
-    { title: "BKOrder", href: "/purchase-orders", icon: ShoppingCart },
-    { title: "103", href: "/sales-103", icon: FileText },
-    { title: "BKPt", href: "/bkpt", icon: FileText },
-    { title: "Invoice 103", href: "/invoice-103", icon: FileText },
-    { title: "Bahan Terpakai", href: "/material-usage", icon: ClipboardList },
-    { title: "Hasil Produksi", href: "/production-results", icon: Factory },
-    { title: "Pengiriman", href: "/delivery", icon: Truck },
-    { title: "Invoice", href: "/invoices", icon: FileText },
-    { title: "Finance / Kas", href: "/finance", icon: Wallet },
-    { title: "Employees", href: "/employees", icon: UserRound },
-    { title: "Attendance", href: "/attendance", icon: ClipboardList },
-    { title: "Payroll", href: "/payroll", icon: UserRound },
-    { title: "Reports", href: "/reports", icon: BarChart3 },
-    { title: "Settings", href: "/settings", icon: Settings },
-    { title: "Notifications", href: "/notifications", icon: Bell },
-  ];
+  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "BKOrder", href: "/purchase-orders", icon: ShoppingCart },
+  { title: "103", href: "/sales-103", icon: FileText },
+  { title: "Invoice 103", href: "/invoice-103", icon: FileText },
+  { title: "BKPt", href: "/bkpt", icon: FileText },
+  { title: "Bank 103", href: "/bank-103", icon: Wallet },
+];
 
   return (
     <aside className="w-[260px] h-screen bg-black text-white p-5 fixed left-0 top-0 overflow-y-auto">
