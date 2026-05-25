@@ -1,8 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
-import { createProductionOrder } from "@/services/production";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import {
+  createProductionOrder,
+  getProductionOrder,
+} from "@/services/production";
 import { ProductionOrderPayload } from "@/types/production";
 
 const REPEAT_COLUMNS = Array.from({ length: 14 }, (_, index) => index);
@@ -29,6 +32,11 @@ const emptyForm: ProductionOrderPayload = {
   notes: "",
 };
 
+function toDateInput(value?: string | null) {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
+
 function toNumber(value: unknown) {
   const numberValue = Number(value || 0);
   return Number.isFinite(numberValue) ? numberValue : 0;
@@ -51,7 +59,7 @@ function numberInputValue(value: unknown) {
 
 function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload {
   const partials = normalizeArray<number | null>(
-    form.partial_billing_quantities,
+    form.partial_billing_quantities ?? null,
     null
   ).map((value) => toNumber(value));
 
@@ -76,15 +84,61 @@ function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload 
   };
 }
 
-export default function CreatePurchaseOrderPage() {
+function CreatePurchaseOrderContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const copyFrom = searchParams.get("copyFrom");
 
   const [form, setForm] = useState<ProductionOrderPayload>(emptyForm);
+  const [loadingCopy, setLoadingCopy] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    async function loadCopyData() {
+      if (!copyFrom) return;
+
+      setLoadingCopy(true);
+
+      try {
+        const data = await getProductionOrder(copyFrom);
+
+        setForm({
+          ...emptyForm,
+
+          // HEADER PO YANG DISALIN
+          order_date: toDateInput(data.order_date),
+          order_number: data.order_number || "",
+          po_date: toDateInput(data.po_date),
+          do_number: data.do_number || "",
+          delivery_date: toDateInput(data.delivery_date),
+          customer_name: data.customer_name || "",
+
+          // DETAIL ORDER DIKOSONGKAN
+          size: "",
+          material_type: "",
+          print_type: "",
+          specification: "",
+          unit: data.unit || "Rim",
+          quantity: null,
+          rim: null,
+          price: null,
+          delivery_completed_dates: Array(14).fill(null),
+          partial_billing_quantities: Array(14).fill(null),
+          total_keping: null,
+          status: data.status || "PO_MASUK",
+          notes: "",
+        });
+      } finally {
+        setLoadingCopy(false);
+      }
+    }
+
+    loadCopyData();
+  }, [copyFrom]);
 
   const autoTotalKeping = useMemo(() => {
     const values = normalizeArray<number | string | null>(
-      form.partial_billing_quantities,
+      form.partial_billing_quantities ?? null,
       null
     );
 
@@ -119,28 +173,26 @@ export default function CreatePurchaseOrderPage() {
     });
   }
 
- function updatePartialColumn(index: number, value: string) {
-  setForm((prev) => {
-    if (!prev) return prev;
+  function updatePartialColumn(index: number, value: string) {
+    setForm((prev) => {
+      const next: (number | null)[] = normalizeArray<number | null>(
+        prev.partial_billing_quantities ?? null,
+        null
+      );
 
-    const next = normalizeArray<number | null>(
-      prev.partial_billing_quantities,
-      null
-    );
+      next[index] = value === "" ? null : Number(value);
 
-    next[index] = value === "" ? null : Number(value);
+      const totalKeping = next.reduce<number>((sum, item) => {
+        return sum + toNumber(item);
+      }, 0);
 
-    const totalKeping = next.reduce<number>((sum, item) => {
-      return sum + toNumber(item);
-    }, 0);
-
-    return {
-      ...prev,
-      partial_billing_quantities: next,
-      total_keping: totalKeping,
-    };
-  });
-}
+      return {
+        ...prev,
+        partial_billing_quantities: next,
+        total_keping: totalKeping,
+      };
+    });
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -154,14 +206,33 @@ export default function CreatePurchaseOrderPage() {
     }
   }
 
+  if (loadingCopy) {
+    return (
+      <div className="p-6 text-sm text-gray-500">
+        Menyalin header PO untuk tambah order baru...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tambah BKOrder</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {copyFrom ? "Tambah Order di PO Ini" : "Tambah BKOrder"}
+        </h1>
         <p className="text-sm text-gray-500">
-          Form input mengikuti format BKOrder Excel client.
+          {copyFrom
+            ? "Header PO disalin, isi detail order baru di bawah."
+            : "Form input mengikuti format BKOrder Excel client."}
         </p>
       </div>
+
+      {copyFrom && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          Mode tambah baris order dalam PO yang sama. Field TGL, NO.ORD, PO
+          Date, PO, Deliv. Date, dan PR sudah disalin otomatis.
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -198,7 +269,7 @@ export default function CreatePurchaseOrderPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">DO NUMBER</label>
+            <label className="mb-1 block text-sm font-medium">PO</label>
             <input
               value={form.do_number || ""}
               onChange={(e) => updateField("do_number", e.target.value)}
@@ -423,7 +494,6 @@ export default function CreatePurchaseOrderPage() {
                   )}
                   onChange={(e) => updatePartialColumn(index, e.target.value)}
                   className="w-full rounded-lg border px-2 py-2 text-xs"
-                  placeholder=""
                 />
               </div>
             ))}
@@ -449,5 +519,13 @@ export default function CreatePurchaseOrderPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function CreatePurchaseOrderPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Memuat halaman tambah BKOrder...</div>}>
+      <CreatePurchaseOrderContent />
+    </Suspense>
   );
 }

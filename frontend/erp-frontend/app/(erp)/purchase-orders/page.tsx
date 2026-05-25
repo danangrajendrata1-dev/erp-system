@@ -14,8 +14,8 @@ function formatDate(value?: string | null) {
   if (!value) return "";
   return new Date(value).toLocaleDateString("id-ID", {
     day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+    month: "short",
+    year: "2-digit",
   });
 }
 
@@ -26,7 +26,6 @@ function toNumber(value: unknown) {
 
 function formatNumber(value: unknown) {
   const numberValue = toNumber(value);
-
   if (numberValue === 0) return "";
 
   return numberValue.toLocaleString("id-ID", {
@@ -36,12 +35,9 @@ function formatNumber(value: unknown) {
 
 function formatCurrency(value: unknown) {
   const numberValue = toNumber(value);
-
   if (numberValue === 0) return "";
 
   return numberValue.toLocaleString("id-ID", {
-    style: "currency",
-    currency: "IDR",
     maximumFractionDigits: 0,
   });
 }
@@ -64,6 +60,36 @@ function getTotalKeping(item: ProductionOrder) {
 
 function getKekurangan(item: ProductionOrder) {
   return Math.max(toNumber(item.quantity) - getTotalKeping(item), 0);
+}
+
+function getGroupKey(item: ProductionOrder) {
+  return [
+    item.order_date || "",
+    item.order_number || "",
+    item.po_date || "",
+    item.do_number || "",
+    item.delivery_date || "",
+    item.customer_name || "",
+  ].join("|");
+}
+
+function sortBKOrder(a: ProductionOrder, b: ProductionOrder) {
+  const dateA = a.order_date || "";
+  const dateB = b.order_date || "";
+
+  if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+  const orderA = a.order_number || "";
+  const orderB = b.order_number || "";
+
+  if (orderA !== orderB) return orderA.localeCompare(orderB);
+
+  const poA = a.do_number || "";
+  const poB = b.do_number || "";
+
+  if (poA !== poB) return poA.localeCompare(poB);
+
+  return a.id - b.id;
 }
 
 export default function PurchaseOrdersPage() {
@@ -91,9 +117,11 @@ export default function PurchaseOrdersPage() {
   const filteredData = useMemo(() => {
     const keyword = search.toLowerCase().trim();
 
-    if (!keyword) return data;
+    const sorted = [...data].sort(sortBKOrder);
 
-    return data.filter((item) => {
+    if (!keyword) return sorted;
+
+    return sorted.filter((item) => {
       return [
         item.order_number,
         item.do_number,
@@ -110,6 +138,33 @@ export default function PurchaseOrdersPage() {
         .includes(keyword);
     });
   }, [data, search]);
+
+  const groupedData = useMemo(() => {
+    const groups: {
+      key: string;
+      header: ProductionOrder;
+      rows: ProductionOrder[];
+    }[] = [];
+
+    const map = new Map<string, ProductionOrder[]>();
+
+    filteredData.forEach((item) => {
+      const key = getGroupKey(item);
+      const current = map.get(key) || [];
+      current.push(item);
+      map.set(key, current);
+    });
+
+    map.forEach((rows, key) => {
+      groups.push({
+        key,
+        header: rows[0],
+        rows,
+      });
+    });
+
+    return groups;
+  }, [filteredData]);
 
   const summary = useMemo(() => {
     return filteredData.reduce(
@@ -142,7 +197,8 @@ export default function PurchaseOrdersPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">BKOrder</h1>
           <p className="text-sm text-gray-500">
-            Buku order sesuai format Excel client.
+            Buku order sesuai format Excel client. Satu PO bisa berisi banyak
+            baris order.
           </p>
         </div>
 
@@ -150,7 +206,7 @@ export default function PurchaseOrdersPage() {
           onClick={() => router.push("/purchase-orders/create")}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
         >
-          + Tambah BKOrder
+          + Tambah PO / BKOrder
         </button>
       </div>
 
@@ -187,7 +243,7 @@ export default function PurchaseOrdersPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Cari NO.ORD, DO NUMBER, PR, jenis bahan, jenis cetak..."
+          placeholder="Cari NO.ORD, PO, PR, jenis bahan, jenis cetak..."
           className="w-full rounded-lg border px-3 py-2 text-sm md:max-w-xl"
         />
 
@@ -213,7 +269,7 @@ export default function PurchaseOrdersPage() {
                 PO Date
               </th>
               <th rowSpan={2} className="border px-2 py-2 text-left">
-                DO NUMBER
+                PO
               </th>
               <th rowSpan={2} className="border px-2 py-2 text-left">
                 Deliv. Date
@@ -249,7 +305,7 @@ export default function PurchaseOrdersPage() {
                 KEKURANGAN
               </th>
               <th colSpan={14} className="border px-2 py-2 text-center">
-                TGL KIRIM / SELESAI
+                TGL KIRIM/SELESAI
               </th>
               <th colSpan={14} className="border px-2 py-2 text-center">
                 TAGIHAN PARSIAL (Keping)
@@ -287,138 +343,179 @@ export default function PurchaseOrdersPage() {
                   Memuat data BKOrder...
                 </td>
               </tr>
-            ) : filteredData.length === 0 ? (
+            ) : groupedData.length === 0 ? (
               <tr>
                 <td colSpan={46} className="border px-3 py-6 text-center">
                   Belum ada data BKOrder.
                 </td>
               </tr>
             ) : (
-              filteredData.map((item) => {
-                const deliveryDates = normalizeArray(
-                  item.delivery_completed_dates,
-                  null
-                );
+              groupedData.map((group) => {
+                return group.rows.map((item, rowIndex) => {
+                  const isFirstRow = rowIndex === 0;
+                  const rowSpan = group.rows.length;
 
-                const partials = normalizeArray(
-                  item.partial_billing_quantities,
-                  null
-                );
+                  const deliveryDates = normalizeArray(
+                    item.delivery_completed_dates,
+                    null
+                  );
 
-                const totalKeping = getTotalKeping(item);
-                const kekurangan = getKekurangan(item);
+                  const partials = normalizeArray(
+                    item.partial_billing_quantities,
+                    null
+                  );
 
-                return (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="border px-2 py-2">
-                      {formatDate(item.order_date)}
-                    </td>
+                  const totalKeping = getTotalKeping(item);
+                  const kekurangan = getKekurangan(item);
 
-                    <td className="border px-2 py-2 font-medium">
-                      {item.order_number}
-                    </td>
+                  return (
+                    <tr
+                      key={item.id}
+                      className={
+                        isFirstRow
+                          ? "border-t-2 border-t-gray-400 hover:bg-gray-50"
+                          : "hover:bg-gray-50"
+                      }
+                    >
+                      {isFirstRow && (
+                        <>
+                          <td
+                            rowSpan={rowSpan}
+                            className="border px-2 py-2 align-top"
+                          >
+                            {formatDate(group.header.order_date)}
+                          </td>
 
-                    <td className="border px-2 py-2">
-                      {formatDate(item.po_date)}
-                    </td>
+                          <td
+                            rowSpan={rowSpan}
+                            className="border px-2 py-2 align-top font-medium"
+                          >
+                            {group.header.order_number}
+                          </td>
 
-                    <td className="border px-2 py-2">
-                      {item.do_number}
-                    </td>
+                          <td
+                            rowSpan={rowSpan}
+                            className="border px-2 py-2 align-top"
+                          >
+                            {formatDate(group.header.po_date)}
+                          </td>
 
-                    <td className="border px-2 py-2">
-                      {formatDate(item.delivery_date)}
-                    </td>
+                          <td
+                            rowSpan={rowSpan}
+                            className="border px-2 py-2 align-top"
+                          >
+                            {group.header.do_number}
+                          </td>
 
-                    <td className="border px-2 py-2">
-                      {item.customer_name}
-                    </td>
+                          <td
+                            rowSpan={rowSpan}
+                            className="border px-2 py-2 align-top"
+                          >
+                            {formatDate(group.header.delivery_date)}
+                          </td>
 
-                    <td className="border px-2 py-2">
-                      {item.size}
-                    </td>
+                          <td
+                            rowSpan={rowSpan}
+                            className="border px-2 py-2 align-top"
+                          >
+                            <div className="font-medium">
+                              {group.header.customer_name}
+                            </div>
 
-                    <td className="border px-2 py-2">
-                      {item.material_type}
-                    </td>
+                            <button
+                              onClick={() =>
+                                router.push(
+                                  `/purchase-orders/create?copyFrom=${group.header.id}`
+                                )
+                              }
+                              className="mt-2 rounded bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 print:hidden"
+                            >
+                              + Tambah Order di PO ini
+                            </button>
+                          </td>
+                        </>
+                      )}
 
-                    <td className="border px-2 py-2">
-                      {item.print_type}
-                    </td>
+                      <td className="border px-2 py-2">{item.size}</td>
 
-                    <td className="border px-2 py-2">
-                      {item.specification}
-                    </td>
-
-                    <td className="border px-2 py-2">
-                      {item.unit}
-                    </td>
-
-                    <td className="border px-2 py-2 text-right">
-                      {formatNumber(item.quantity)}
-                    </td>
-
-                    <td className="border px-2 py-2 text-right">
-                      {formatNumber(item.rim)}
-                    </td>
-
-                    <td className="border px-2 py-2 text-right">
-                      {formatCurrency(item.price)}
-                    </td>
-
-                    <td className="border px-2 py-2 text-right font-semibold">
-                      {formatNumber(kekurangan)}
-                    </td>
-
-                    {deliveryDates.map((dateValue, index) => (
-                      <td
-                        key={`date-${item.id}-${index}`}
-                        className="border px-2 py-2 text-center"
-                      >
-                        {formatDate(dateValue)}
+                      <td className="border px-2 py-2">
+                        {item.material_type}
                       </td>
-                    ))}
 
-                    {partials.map((partialValue, index) => (
-                      <td
-                        key={`partial-${item.id}-${index}`}
-                        className="border px-2 py-2 text-right"
-                      >
-                        {formatNumber(partialValue)}
+                      <td className="border px-2 py-2">{item.print_type}</td>
+
+                      <td className="border px-2 py-2">
+                        {item.specification}
                       </td>
-                    ))}
 
-                    <td className="border px-2 py-2 text-right font-semibold">
-                      {formatNumber(totalKeping)}
-                    </td>
+                      <td className="border px-2 py-2">{item.unit}</td>
 
-                    <td className="border px-2 py-2">
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold">
-                        {item.status || "-"}
-                      </span>
-                    </td>
+                      <td className="border px-2 py-2 text-right">
+                        {formatNumber(item.quantity)}
+                      </td>
 
-                    <td className="border px-2 py-2 text-center print:hidden">
-                      <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() =>
-                            router.push(`/purchase-orders/${item.id}`)
-                          }
-                          className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+                      <td className="border px-2 py-2 text-right">
+                        {formatNumber(item.rim)}
+                      </td>
+
+                      <td className="border px-2 py-2 text-right">
+                        {formatCurrency(item.price)}
+                      </td>
+
+                      <td className="border px-2 py-2 text-right font-semibold">
+                        {formatNumber(kekurangan)}
+                      </td>
+
+                      {deliveryDates.map((dateValue, index) => (
+                        <td
+                          key={`date-${item.id}-${index}`}
+                          className="border px-2 py-2 text-center"
                         >
-                          Edit
-                        </button>
+                          {formatDate(dateValue)}
+                        </td>
+                      ))}
 
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                      {partials.map((partialValue, index) => (
+                        <td
+                          key={`partial-${item.id}-${index}`}
+                          className="border px-2 py-2 text-right"
                         >
-                          Hapus
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
+                          {formatNumber(partialValue)}
+                        </td>
+                      ))}
+
+                      <td className="border px-2 py-2 text-right font-semibold">
+                        {formatNumber(totalKeping)}
+                      </td>
+
+                      <td className="border px-2 py-2">
+                        <span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold">
+                          {item.status || "-"}
+                        </span>
+                      </td>
+
+                      <td className="border px-2 py-2 text-center print:hidden">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() =>
+                              router.push(`/purchase-orders/${item.id}`)
+                            }
+                            className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                });
               })
             )}
           </tbody>
