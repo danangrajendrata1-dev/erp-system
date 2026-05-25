@@ -1,10 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database.connection import (
-    engine,
-    Base
-)
+from app.database.connection import engine, Base
 
 # =========================
 # IMPORT MODELS
@@ -14,32 +11,20 @@ from app.models.customer_model import Customer
 from app.models.supplier_model import Supplier
 from app.models.material_model import Material
 from app.models.inventory_model import InventoryMovement
-from app.models.sales_order_model import (
-    SalesOrder,
-    SalesOrderItem
-)
+from app.models.sales_order_model import SalesOrder, SalesOrderItem
 from app.models.production_model import ProductionOrder
 from app.models.cash_model import CashTransaction
 from app.models.employee_model import Employee
-from app.models.payroll_model import (
-    Attendance,
-    Payroll
-)
+from app.models.payroll_model import Attendance, Payroll
 from app.models.material_receipt_model import MaterialReceipt
 from app.models.production_process_model import ProductionProcess
-from app.api.routes.production_process_route import router as production_process_router
 from app.models.shipment_model import Shipment
-from app.api.routes.shipment_route import router as shipment_router
 from app.models.invoice_model import Invoice
-from app.api.routes.invoice_route import router as invoice_router
 from app.models.sales_103_model import Sales103
 from app.models.bkpt_receivables_model import BKPtReceivable
-from app.api.routes import bkpt_receivables_route
-
-
 
 # =========================
-# ROUTES
+# IMPORT ROUTES
 # =========================
 from app.api.routes.auth_route import router as auth_router
 from app.api.routes.customer_route import router as customer_router
@@ -52,23 +37,49 @@ from app.api.routes.cash_route import router as cash_router
 from app.api.routes.payroll_route import router as payroll_router
 from app.api.routes.dashboard_route import router as dashboard_router
 from app.api.routes.material_receipt_route import router as material_receipt_router
-from app.api.routes import sales_103_route
-Base.metadata.create_all(bind=engine)
+from app.api.routes.production_process_route import router as production_process_router
+from app.api.routes.shipment_route import router as shipment_router
+from app.api.routes.invoice_route import router as invoice_router
+from app.api.routes.sales_103_route import router as sales_103_router
+from app.api.routes.bkpt_receivables_route import router as bkpt_receivables_router
 
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="ERP SYSTEM",
     version="1.0.0"
 )
 
+# =========================
+# CORS
+# =========================
+origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://erp-system-ten-jade.vercel.app",
+    "https://erp-system-production-7804.up.railway.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
+@app.get("/")
+def root():
+    return {
+        "message": "ERP Backend Running"
+    }
+
+
+# =========================
+# INCLUDE ROUTERS
+# =========================
 app.include_router(auth_router)
 app.include_router(customer_router)
 app.include_router(supplier_router)
@@ -83,10 +94,5 @@ app.include_router(material_receipt_router)
 app.include_router(production_process_router)
 app.include_router(shipment_router)
 app.include_router(invoice_router)
-app.include_router(sales_103_route.router)
-app.include_router(bkpt_receivables_route.router)
-@app.get("/")
-def root():
-    return {
-        "message": "ERP Backend Running"
-    }
+app.include_router(sales_103_router)
+app.include_router(bkpt_receivables_router)
