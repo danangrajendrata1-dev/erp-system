@@ -13,17 +13,52 @@ function toNumber(value: number | string | null | undefined) {
     return Number.isFinite(value) ? value : 0;
   }
 
-  const cleaned = String(value)
-    .replace(/\s/g, "")
-    .replace(/\./g, "")
-    .replace(",", ".");
+  const raw = String(value).trim().replace(/\s/g, "");
 
-  const numberValue = Number(cleaned);
-  return Number.isNaN(numberValue) ? 0 : numberValue;
+  if (!raw) return 0;
+
+  const hasComma = raw.includes(",");
+  const hasDot = raw.includes(".");
+
+  // Format Indonesia: 1.234.567,89
+  if (hasComma && hasDot) {
+    const normalized = raw.replace(/\./g, "").replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  // Format Indonesia decimal: 13,2
+  if (hasComma && !hasDot) {
+    const normalized = raw.replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  // Format backend decimal: 5280000.00 / 400000.00 / 13.200
+  if (hasDot && !hasComma) {
+    const dotCount = (raw.match(/\./g) || []).length;
+
+    if (dotCount > 1) {
+      const normalized = raw.replace(/\./g, "");
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function formatNumber(value: number | string | null | undefined) {
-  return toNumber(value).toLocaleString("id-ID");
+  const numberValue = toNumber(value);
+
+  return numberValue.toLocaleString("id-ID", {
+    minimumFractionDigits: numberValue % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatCurrency(value: number | string | null | undefined) {
@@ -110,6 +145,7 @@ function terbilangRupiah(value: number) {
     if (n < 100) {
       const puluh = Math.floor(n / 10);
       const sisa = n % 10;
+
       return `${baca(puluh)} puluh${sisa ? ` ${baca(sisa)}` : ""}`;
     }
 
@@ -120,6 +156,7 @@ function terbilangRupiah(value: number) {
     if (n < 1000) {
       const ratus = Math.floor(n / 100);
       const sisa = n % 100;
+
       return `${baca(ratus)} ratus${sisa ? ` ${baca(sisa)}` : ""}`;
     }
 
@@ -130,18 +167,21 @@ function terbilangRupiah(value: number) {
     if (n < 1_000_000) {
       const ribu = Math.floor(n / 1000);
       const sisa = n % 1000;
+
       return `${baca(ribu)} ribu${sisa ? ` ${baca(sisa)}` : ""}`;
     }
 
     if (n < 1_000_000_000) {
       const juta = Math.floor(n / 1_000_000);
       const sisa = n % 1_000_000;
+
       return `${baca(juta)} juta${sisa ? ` ${baca(sisa)}` : ""}`;
     }
 
     if (n < 1_000_000_000_000) {
       const miliar = Math.floor(n / 1_000_000_000);
       const sisa = n % 1_000_000_000;
+
       return `${baca(miliar)} miliar${sisa ? ` ${baca(sisa)}` : ""}`;
     }
 
@@ -151,6 +191,7 @@ function terbilangRupiah(value: number) {
   if (bilangan === 0) return "Nol rupiah";
 
   const text = `${baca(bilangan)} rupiah`;
+
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
@@ -165,15 +206,58 @@ function getPoNumber(item: any) {
 }
 
 function getDoNumber(item: any) {
-  return normalizeText(item.do_number || item.do_no || item.no_sj || item.surat_jalan);
+  return normalizeText(
+    item.do_number || item.do_no || item.no_sj || item.surat_jalan
+  );
+}
+
+function getDescription(item: any) {
+  return normalizeText(
+    item.jenis_cetak || item.spesifikasi || item.description || "-"
+  );
+}
+
+function getQuantity(item: any) {
+  return toNumber(item.jml ?? item.quantity);
+}
+
+function getPrice(item: any) {
+  return toNumber(item.harga ?? item.price);
+}
+
+function getRowDpp(item: any) {
+  const dpp = toNumber(item.dpp ?? item.amount);
+
+  if (dpp > 0) return dpp;
+
+  return getQuantity(item) * getPrice(item);
+}
+
+function getRowPpn(item: any) {
+  const ppn = toNumber(item.ppn_keluar ?? item.vat);
+
+  if (ppn > 0) return ppn;
+
+  return Math.round(getRowDpp(item) * 0.11);
+}
+
+function getRowPiutang(item: any) {
+  const piutang = toNumber(
+    item.piutang_dagang ?? item.total ?? item.grand_total
+  );
+
+  if (piutang > 0) return piutang;
+
+  return getRowDpp(item) + getRowPpn(item);
 }
 
 function uniquePoRows(data: Invoice103Group | null) {
   if (!data) return [];
 
+  const rows = data.rows || [];
   const map = new Map<string, any>();
 
-  data.rows.forEach((item: any) => {
+  rows.forEach((item: any) => {
     const poDate = getPoDate(item, data.tgl);
     const poNumber = getPoNumber(item);
     const doNumber = getDoNumber(item);
@@ -192,35 +276,11 @@ function uniquePoRows(data: Invoice103Group | null) {
   return Array.from(map.values());
 }
 
-function getRowDpp(item: any) {
-  const dpp = toNumber(item.dpp);
-
-  if (dpp > 0) return dpp;
-
-  return toNumber(item.jml) * toNumber(item.harga);
-}
-
-function getRowPpn(item: any) {
-  const ppn = toNumber(item.ppn_keluar);
-
-  if (ppn > 0) return ppn;
-
-  return Math.round(getRowDpp(item) * 0.11);
-}
-
-function getRowPiutang(item: any) {
-  const piutang = toNumber(item.piutang_dagang);
-
-  if (piutang > 0) return piutang;
-
-  return getRowDpp(item) + getRowPpn(item);
-}
-
 export default function Invoice103DetailPage() {
   const params = useParams();
   const router = useRouter();
 
-  const noInvoice = decodeURIComponent(params.no_invoice as string);
+  const noInvoice = decodeURIComponent(String(params.no_invoice ?? ""));
 
   const [data, setData] = useState<Invoice103Group | null>(null);
   const [loading, setLoading] = useState(true);
@@ -234,6 +294,7 @@ export default function Invoice103DetailPage() {
         setError("");
 
         const invoiceResult = await getInvoice103ByNoInvoice(noInvoice);
+
         setData(invoiceResult);
 
         try {
@@ -273,17 +334,22 @@ export default function Invoice103DetailPage() {
       };
     }
 
+    const rows = data.rows || [];
+
     const subtotal =
-      toNumber(data.total_dpp) ||
-      data.rows.reduce((sum: number, item: any) => sum + getRowDpp(item), 0);
+      toNumber((data as any).total_dpp) ||
+      toNumber((data as any).subtotal) ||
+      rows.reduce((sum: number, item: any) => sum + getRowDpp(item), 0);
 
     const ppn =
-      toNumber(data.total_ppn_keluar) ||
-      data.rows.reduce((sum: number, item: any) => sum + getRowPpn(item), 0);
+      toNumber((data as any).total_ppn_keluar) ||
+      toNumber((data as any).ppn_keluar) ||
+      rows.reduce((sum: number, item: any) => sum + getRowPpn(item), 0);
 
     const grandTotal =
-      toNumber(data.total_piutang_dagang) ||
-      data.rows.reduce((sum: number, item: any) => sum + getRowPiutang(item), 0);
+      toNumber((data as any).total_piutang_dagang) ||
+      toNumber((data as any).piutang_dagang) ||
+      rows.reduce((sum: number, item: any) => sum + getRowPiutang(item), 0);
 
     return {
       subtotal,
@@ -300,7 +366,7 @@ export default function Invoice103DetailPage() {
       customer_name: data.langganan || "",
       tgl: data.tgl || "",
       no_invoice: data.no_invoice || "",
-      faktur: data.no_faktur || "",
+      faktur: (data as any).no_faktur || "",
       debet: String(invoiceInfo.grandTotal || 0),
       keterangan: `Piutang dari Invoice 103 ${data.no_invoice}`,
     });
@@ -338,19 +404,22 @@ export default function Invoice103DetailPage() {
           <h1 className="text-xl font-bold">Invoice tidak ditemukan</h1>
 
           <p className="mt-2 text-sm text-gray-500">
-            {error || `Data invoice dengan nomor ${noInvoice} tidak ditemukan di 103.`}
+            {error ||
+              `Data invoice dengan nomor ${noInvoice} tidak ditemukan di 103.`}
           </p>
 
           <button
-            onClick={() => router.push("/invoice-103")}
+            onClick={() => router.push("/sales-103")}
             className="mt-4 rounded bg-gray-800 px-4 py-2 text-white hover:bg-gray-900"
           >
-            Kembali
+            Kembali ke 103
           </button>
         </div>
       </div>
     );
   }
+
+  const rows = data.rows || [];
 
   return (
     <>
@@ -358,30 +427,75 @@ export default function Invoice103DetailPage() {
         @media print {
           @page {
             size: A4 portrait;
-            margin: 8mm;
+            margin: 6mm;
           }
 
+          html,
           body {
+            width: 210mm !important;
+            height: 297mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: white !important;
+            overflow: hidden !important;
           }
 
+          body * {
+            visibility: hidden !important;
+          }
+
+          .print-area,
+          .print-area * {
+            visibility: visible !important;
+          }
+
+          aside,
+          nav,
+          header,
+          .sidebar,
+          .topbar,
+          .navbar,
           .no-print {
             display: none !important;
+            visibility: hidden !important;
           }
 
           .print-area {
-            box-shadow: none !important;
-            border: none !important;
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 210mm !important;
+            height: 297mm !important;
+            max-width: none !important;
             margin: 0 !important;
             padding: 0 !important;
-            max-width: none !important;
-            width: 100% !important;
+            background: white !important;
+            border: none !important;
+            box-shadow: none !important;
+            overflow: hidden !important;
           }
 
           .invoice-paper {
+            width: 198mm !important;
+            height: 285mm !important;
+            margin: 0 auto !important;
+            padding: 4mm !important;
             border: none !important;
-            padding: 0 !important;
-            min-height: auto !important;
+            box-shadow: none !important;
+            background: white !important;
+            overflow: hidden !important;
+            page-break-before: avoid !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+            transform: scale(0.96);
+            transform-origin: top center;
+          }
+
+          table,
+          tr,
+          td,
+          th {
+            page-break-inside: avoid !important;
           }
         }
       `}</style>
@@ -399,7 +513,7 @@ export default function Invoice103DetailPage() {
 
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => router.push("/invoice-103")}
+              onClick={() => router.push("/sales-103")}
               className="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50"
             >
               Kembali
@@ -472,7 +586,9 @@ export default function Invoice103DetailPage() {
                     <>
                       <div>PO Date</div>
                       <div>:</div>
-                      <div>{formatDate(invoiceInfo.poRows[0]?.poDate || data.tgl)}</div>
+                      <div>
+                        {formatDate(invoiceInfo.poRows[0]?.poDate || data.tgl)}
+                      </div>
 
                       <div>PO Number</div>
                       <div>:</div>
@@ -528,10 +644,10 @@ export default function Invoice103DetailPage() {
               </thead>
 
               <tbody>
-                {data.rows.map((item: any, index: number) => {
-                  const quantity = toNumber(item.jml);
-                  const unit = getUnit(item.sat);
-                  const price = toNumber(item.harga);
+                {rows.map((item: any, index: number) => {
+                  const quantity = getQuantity(item);
+                  const unit = getUnit(item.sat ?? item.satuan ?? item.unit);
+                  const price = getPrice(item);
                   const amount = getRowDpp(item);
 
                   return (
@@ -541,7 +657,7 @@ export default function Invoice103DetailPage() {
                       </td>
 
                       <td className="border-x border-slate-800 px-3 py-3 align-top">
-                        {item.jenis_cetak || item.spesifikasi || item.description || "-"}
+                        {getDescription(item)}
                       </td>
 
                       <td className="border-x border-slate-800 px-3 py-3 text-center align-top">
@@ -560,7 +676,7 @@ export default function Invoice103DetailPage() {
                   );
                 })}
 
-                {Array.from({ length: Math.max(0, 5 - data.rows.length) }).map(
+                {Array.from({ length: Math.max(0, 5 - rows.length) }).map(
                   (_, index) => (
                     <tr key={`empty-${index}`}>
                       <td className="h-[42px] border-x border-slate-800" />
