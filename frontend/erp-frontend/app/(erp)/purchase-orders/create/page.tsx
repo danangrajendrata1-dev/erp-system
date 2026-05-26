@@ -1,12 +1,18 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
-import {
-  createProductionOrder,
-  getProductionOrder,
-} from "@/services/production";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import MaterialSearchInput from "@/components/MaterialSearchInput";
+import { createProductionOrder, getProductionOrder } from "@/services/production";
 import { ProductionOrderPayload } from "@/types/production";
+import { MaterialType } from "@/types/material";
+import {
+  parseUkuranMm,
+  hitungKepingPerRim,
+  hitungKepingDariRim,
+  hitungRimDariKeping,
+} from "@/utils/bkorder-calculation";
 
 const REPEAT_COLUMNS = Array.from({ length: 14 }, (_, index) => index);
 
@@ -57,6 +63,75 @@ function numberInputValue(value: unknown) {
   return numberValue === 0 ? "" : String(numberValue);
 }
 
+function formatNumber(value: number) {
+  if (!value || value <= 0) return "-";
+  return value.toLocaleString("id-ID");
+}
+
+function isRimUnit(unit?: string | null) {
+  return String(unit || "").toLowerCase().includes("rim");
+}
+
+function getKepingPerRimFromForm(
+  form: ProductionOrderPayload | null,
+  cuttingInfo: {
+    kepingPerRim: number;
+  }
+) {
+  if (cuttingInfo.kepingPerRim > 0) {
+    return cuttingInfo.kepingPerRim;
+  }
+
+  const quantity = toNumber(form?.quantity);
+  const rim = toNumber(form?.rim);
+
+  if (quantity > 0 && rim > 0) {
+    return quantity / rim;
+  }
+
+  return 0;
+}
+
+function convertDisplayToKeping(params: {
+  value: number;
+  unit?: string | null;
+  kepingPerRim: number;
+}) {
+  const { value, unit, kepingPerRim } = params;
+
+  if (isRimUnit(unit) && kepingPerRim > 0) {
+    return value * kepingPerRim;
+  }
+
+  return value;
+}
+
+function convertKepingToDisplay(params: {
+  value: unknown;
+  unit?: string | null;
+  kepingPerRim: number;
+}) {
+  const { value, unit, kepingPerRim } = params;
+
+  const keping = toNumber(value);
+
+  if (keping === 0) return "";
+
+  if (isRimUnit(unit) && kepingPerRim > 0) {
+    return String(Number((keping / kepingPerRim).toFixed(4)));
+  }
+
+  return String(keping);
+}
+
+function formatDisplayValue(value: number, unit?: string | null) {
+  if (!value || value <= 0) return "";
+
+  return `${value.toLocaleString("id-ID", {
+    maximumFractionDigits: 4,
+  })} ${isRimUnit(unit) ? "Rim" : "Keping"}`;
+}
+
 function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload {
   const partials = normalizeArray<number | null>(
     form.partial_billing_quantities ?? null,
@@ -90,6 +165,9 @@ function CreatePurchaseOrderContent() {
   const copyFrom = searchParams.get("copyFrom");
 
   const [form, setForm] = useState<ProductionOrderPayload>(emptyForm);
+  const [selectedMaterial, setSelectedMaterial] = useState<MaterialType | null>(
+    null
+  );
   const [loadingCopy, setLoadingCopy] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -104,16 +182,12 @@ function CreatePurchaseOrderContent() {
 
         setForm({
           ...emptyForm,
-
-          // HEADER PO YANG DISALIN
           order_date: toDateInput(data.order_date),
           order_number: data.order_number || "",
           po_date: toDateInput(data.po_date),
           do_number: data.do_number || "",
           delivery_date: toDateInput(data.delivery_date),
           customer_name: data.customer_name || "",
-
-          // DETAIL ORDER DIKOSONGKAN
           size: "",
           material_type: "",
           print_type: "",
@@ -128,6 +202,8 @@ function CreatePurchaseOrderContent() {
           status: data.status || "PO_MASUK",
           notes: "",
         });
+
+        setSelectedMaterial(null);
       } finally {
         setLoadingCopy(false);
       }
@@ -147,9 +223,47 @@ function CreatePurchaseOrderContent() {
     }, 0);
   }, [form.partial_billing_quantities]);
 
-  const kekurangan = useMemo(() => {
+  const cuttingInfo = useMemo(() => {
+    if (!selectedMaterial) {
+      return {
+        keping: 0,
+        lajur: 0,
+        kepingPerLembar: 0,
+        kepingPerRim: 0,
+      };
+    }
+
+    const { lebarMm, panjangMm } = parseUkuranMm(form.size || "");
+
+    return hitungKepingPerRim({
+      lebarOrderMm: lebarMm,
+      panjangOrderMm: panjangMm,
+      lebarBahanCm: Number(selectedMaterial.width_cm),
+      panjangBahanCm: Number(selectedMaterial.length_cm),
+    });
+  }, [form.size, selectedMaterial]);
+
+  const kepingPerRim = useMemo(() => {
+    return getKepingPerRimFromForm(form, cuttingInfo);
+  }, [form, cuttingInfo]);
+
+  const kekuranganKeping = useMemo(() => {
     return Math.max(toNumber(form.quantity) - autoTotalKeping, 0);
   }, [form.quantity, autoTotalKeping]);
+
+  const kekuranganDisplay = useMemo(() => {
+    if (isRimUnit(form.unit) && kepingPerRim > 0) {
+      return {
+        value: kekuranganKeping / kepingPerRim,
+        unit: "Rim",
+      };
+    }
+
+    return {
+      value: kekuranganKeping,
+      unit: "Keping",
+    };
+  }, [form.unit, kekuranganKeping, kepingPerRim]);
 
   function updateField<K extends keyof ProductionOrderPayload>(
     key: K,
@@ -175,12 +289,23 @@ function CreatePurchaseOrderContent() {
 
   function updatePartialColumn(index: number, value: string) {
     setForm((prev) => {
+      const currentKepingPerRim = getKepingPerRimFromForm(prev, cuttingInfo);
+
       const next: (number | null)[] = normalizeArray<number | null>(
         prev.partial_billing_quantities ?? null,
         null
       );
 
-      next[index] = value === "" ? null : Number(value);
+      const inputValue = value === "" ? null : Number(value);
+
+      next[index] =
+        inputValue === null
+          ? null
+          : convertDisplayToKeping({
+              value: inputValue,
+              unit: prev.unit,
+              kepingPerRim: currentKepingPerRim,
+            });
 
       const totalKeping = next.reduce<number>((sum, item) => {
         return sum + toNumber(item);
@@ -192,6 +317,152 @@ function CreatePurchaseOrderContent() {
         total_keping: totalKeping,
       };
     });
+  }
+
+  function handleMaterialSelect(material: MaterialType) {
+    setSelectedMaterial(material);
+
+    setForm((prev) => {
+      const nextForm = {
+        ...prev,
+        material_type: material.name,
+      };
+
+      const { lebarMm, panjangMm } = parseUkuranMm(nextForm.size || "");
+
+      if (toNumber(nextForm.rim) > 0) {
+        const hasil = hitungKepingDariRim({
+          rim: toNumber(nextForm.rim),
+          lebarOrderMm: lebarMm,
+          panjangOrderMm: panjangMm,
+          lebarBahanCm: Number(material.width_cm),
+          panjangBahanCm: Number(material.length_cm),
+        });
+
+        return {
+          ...nextForm,
+          quantity: hasil.totalKeping > 0 ? hasil.totalKeping : null,
+        };
+      }
+
+      if (toNumber(nextForm.quantity) > 0) {
+        const hasil = hitungRimDariKeping({
+          totalKeping: toNumber(nextForm.quantity),
+          lebarOrderMm: lebarMm,
+          panjangOrderMm: panjangMm,
+          lebarBahanCm: Number(material.width_cm),
+          panjangBahanCm: Number(material.length_cm),
+        });
+
+        return {
+          ...nextForm,
+          rim: hasil.totalRim > 0 ? Number(hasil.totalRim.toFixed(4)) : null,
+        };
+      }
+
+      return nextForm;
+    });
+  }
+
+  function handleSizeChange(value: string) {
+    setForm((prev) => {
+      const nextForm = {
+        ...prev,
+        size: value,
+      };
+
+      if (!selectedMaterial) return nextForm;
+
+      const { lebarMm, panjangMm } = parseUkuranMm(value);
+
+      if (toNumber(nextForm.rim) > 0) {
+        const hasil = hitungKepingDariRim({
+          rim: toNumber(nextForm.rim),
+          lebarOrderMm: lebarMm,
+          panjangOrderMm: panjangMm,
+          lebarBahanCm: Number(selectedMaterial.width_cm),
+          panjangBahanCm: Number(selectedMaterial.length_cm),
+        });
+
+        return {
+          ...nextForm,
+          quantity: hasil.totalKeping > 0 ? hasil.totalKeping : null,
+        };
+      }
+
+      if (toNumber(nextForm.quantity) > 0) {
+        const hasil = hitungRimDariKeping({
+          totalKeping: toNumber(nextForm.quantity),
+          lebarOrderMm: lebarMm,
+          panjangOrderMm: panjangMm,
+          lebarBahanCm: Number(selectedMaterial.width_cm),
+          panjangBahanCm: Number(selectedMaterial.length_cm),
+        });
+
+        return {
+          ...nextForm,
+          rim: hasil.totalRim > 0 ? Number(hasil.totalRim.toFixed(4)) : null,
+        };
+      }
+
+      return nextForm;
+    });
+  }
+
+  function handleKepingChange(value: string) {
+    const totalKeping = value === "" ? null : Number(value);
+
+    if (!selectedMaterial) {
+      setForm((prev) => ({
+        ...prev,
+        quantity: totalKeping,
+      }));
+      return;
+    }
+
+    const { lebarMm, panjangMm } = parseUkuranMm(form.size || "");
+
+    const hasil = hitungRimDariKeping({
+      totalKeping: toNumber(totalKeping),
+      lebarOrderMm: lebarMm,
+      panjangOrderMm: panjangMm,
+      lebarBahanCm: Number(selectedMaterial.width_cm),
+      panjangBahanCm: Number(selectedMaterial.length_cm),
+    });
+
+    setForm((prev) => ({
+      ...prev,
+      quantity: totalKeping,
+      rim: hasil.totalRim > 0 ? Number(hasil.totalRim.toFixed(4)) : null,
+    }));
+  }
+
+  function handleRimChange(value: string) {
+    const rim = value === "" ? null : Number(value);
+
+    if (!selectedMaterial) {
+      setForm((prev) => ({
+        ...prev,
+        rim,
+      }));
+      return;
+    }
+
+    const { lebarMm, panjangMm } = parseUkuranMm(form.size || "");
+
+    const hasil = hitungKepingDariRim({
+      rim: toNumber(rim),
+      lebarOrderMm: lebarMm,
+      panjangOrderMm: panjangMm,
+      lebarBahanCm: Number(selectedMaterial.width_cm),
+      panjangBahanCm: Number(selectedMaterial.length_cm),
+    });
+
+    setForm((prev) => ({
+      ...prev,
+      rim,
+      quantity: hasil.totalKeping > 0 ? hasil.totalKeping : null,
+    }));
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -209,7 +480,7 @@ function CreatePurchaseOrderContent() {
   if (loadingCopy) {
     return (
       <div className="p-6 text-sm text-gray-500">
-        Menyalin header PO untuk tambah order baru...
+        Menyalin header DO NUMBER untuk tambah order baru...
       </div>
     );
   }
@@ -218,19 +489,20 @@ function CreatePurchaseOrderContent() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          {copyFrom ? "Tambah Order di PO Ini" : "Tambah BKOrder"}
+          {copyFrom ? "Tambah Order di DO NUMBER Ini" : "Tambah BKOrder"}
         </h1>
         <p className="text-sm text-gray-500">
           {copyFrom
-            ? "Header PO disalin, isi detail order baru di bawah."
+            ? "Header DO NUMBER disalin, isi detail order baru di bawah."
             : "Form input mengikuti format BKOrder Excel client."}
         </p>
       </div>
 
       {copyFrom && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-          Mode tambah baris order dalam PO yang sama. Field TGL, NO.ORD, PO
-          Date, PO, Deliv. Date, dan PR sudah disalin otomatis.
+          Mode tambah baris order dalam DO NUMBER yang sama. Field TGL,
+          NO.ORD, PO Date, DO NUMBER, Deliv. Date, dan PR sudah disalin
+          otomatis.
         </div>
       )}
 
@@ -269,7 +541,7 @@ function CreatePurchaseOrderContent() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">PO</label>
+            <label className="mb-1 block text-sm font-medium">DO NUMBER</label>
             <input
               value={form.do_number || ""}
               onChange={(e) => updateField("do_number", e.target.value)}
@@ -302,20 +574,34 @@ function CreatePurchaseOrderContent() {
             <label className="mb-1 block text-sm font-medium">UKURAN</label>
             <input
               value={form.size || ""}
-              onChange={(e) => updateField("size", e.target.value)}
+              onChange={(e) => handleSizeChange(e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Contoh: 45 x 81"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              Isi ukuran order dalam mm. Contoh: 45 x 81
+            </p>
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium">
               JENIS BAHAN
             </label>
-            <input
+            <MaterialSearchInput
               value={form.material_type || ""}
-              onChange={(e) => updateField("material_type", e.target.value)}
-              className="w-full rounded-lg border px-3 py-2 text-sm"
+              onChange={(value) => {
+                setSelectedMaterial(null);
+                updateField("material_type", value);
+              }}
+              onSelect={handleMaterialSelect}
             />
+
+            {selectedMaterial && (
+              <p className="mt-1 text-xs text-blue-700">
+                Ukuran bahan: {Number(selectedMaterial.width_cm)} x{" "}
+                {Number(selectedMaterial.length_cm)} cm
+              </p>
+            )}
           </div>
 
           <div>
@@ -355,14 +641,9 @@ function CreatePurchaseOrderContent() {
             <input
               type="number"
               value={numberInputValue(form.quantity)}
-              onChange={(e) =>
-                updateField(
-                  "quantity",
-                  e.target.value === "" ? null : Number(e.target.value)
-                )
-              }
+              onChange={(e) => handleKepingChange(e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm"
-              placeholder="Kosongkan jika belum diisi"
+              placeholder="Otomatis dari Rim"
             />
           </div>
 
@@ -370,18 +651,33 @@ function CreatePurchaseOrderContent() {
             <label className="mb-1 block text-sm font-medium">Rim</label>
             <input
               type="number"
-              step="0.01"
+              step="0.0001"
               value={numberInputValue(form.rim)}
-              onChange={(e) =>
-                updateField(
-                  "rim",
-                  e.target.value === "" ? null : Number(e.target.value)
-                )
-              }
+              onChange={(e) => handleRimChange(e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm"
-              placeholder="Kosongkan jika belum diisi"
+              placeholder="Otomatis dari Keping"
             />
           </div>
+
+          {selectedMaterial && cuttingInfo.kepingPerRim > 0 && (
+            <div className="md:col-span-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+              <div className="font-semibold">Hitungan Rim ↔ Keping</div>
+              <div className="mt-1">
+                {cuttingInfo.keping} keping x {cuttingInfo.lajur} lajur x 500
+                lembar ={" "}
+                <span className="font-bold">
+                  {formatNumber(cuttingInfo.kepingPerRim)} keping / rim
+                </span>
+              </div>
+            </div>
+          )}
+
+          {selectedMaterial && cuttingInfo.kepingPerRim <= 0 && (
+            <div className="md:col-span-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              Isi UKURAN dengan format benar, contoh: 45 x 81, agar sistem bisa
+              menghitung Rim ↔ Keping.
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium">HARGA</label>
@@ -405,7 +701,10 @@ function CreatePurchaseOrderContent() {
               KEKURANGAN
             </label>
             <input
-              value={kekurangan === 0 ? "" : kekurangan.toLocaleString("id-ID")}
+              value={formatDisplayValue(
+                kekuranganDisplay.value,
+                kekuranganDisplay.unit
+              )}
               readOnly
               className="w-full rounded-lg border bg-gray-100 px-3 py-2 text-sm"
               placeholder="Otomatis"
@@ -441,7 +740,12 @@ function CreatePurchaseOrderContent() {
             <label className="mb-1 block text-sm font-medium">STATUS</label>
             <select
               value={form.status || "PO_MASUK"}
-              onChange={(e) => updateField("status", e.target.value)}
+              onChange={(e) =>
+                updateField(
+                  "status",
+                  e.target.value as ProductionOrderPayload["status"]
+                )
+              }
               className="w-full rounded-lg border px-3 py-2 text-sm"
             >
               <option value="PO_MASUK">PO_MASUK</option>
@@ -476,22 +780,26 @@ function CreatePurchaseOrderContent() {
         </div>
 
         <div className="space-y-3 rounded-xl border bg-gray-50 p-4">
-          <h2 className="font-semibold text-gray-900">
-            TAGIHAN PARSIAL (Keping)
-          </h2>
+          <h2 className="font-semibold text-gray-900">TAGIHAN PARSIAL</h2>
+
+          <p className="text-xs text-gray-500">
+            Input mengikuti SAT order: {isRimUnit(form.unit) ? "Rim" : "Keping"}
+          </p>
 
           <div className="grid gap-3 md:grid-cols-7">
             {REPEAT_COLUMNS.map((index) => (
               <div key={index}>
                 <label className="mb-1 block text-xs font-medium">
-                  Keping {index + 1}
+                  {isRimUnit(form.unit) ? "Rim" : "Keping"} {index + 1}
                 </label>
                 <input
                   type="number"
-                  step="0.01"
-                  value={numberInputValue(
-                    form.partial_billing_quantities?.[index]
-                  )}
+                  step="0.0001"
+                  value={convertKepingToDisplay({
+                    value: form.partial_billing_quantities?.[index],
+                    unit: form.unit,
+                    kepingPerRim,
+                  })}
                   onChange={(e) => updatePartialColumn(index, e.target.value)}
                   className="w-full rounded-lg border px-2 py-2 text-xs"
                 />
@@ -524,7 +832,9 @@ function CreatePurchaseOrderContent() {
 
 export default function CreatePurchaseOrderPage() {
   return (
-    <Suspense fallback={<div className="p-6">Memuat halaman tambah BKOrder...</div>}>
+    <Suspense
+      fallback={<div className="p-6">Memuat halaman tambah BKOrder...</div>}
+    >
       <CreatePurchaseOrderContent />
     </Suspense>
   );

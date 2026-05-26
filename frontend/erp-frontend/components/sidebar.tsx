@@ -19,6 +19,7 @@ import {
   BarChart3,
   Settings,
   Bell,
+  Layers,
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -38,6 +39,7 @@ export default function Sidebar() {
   { title: "Invoice 103", href: "/invoice-103", icon: FileText },
   { title: "BKPt", href: "/bkpt", icon: FileText },
   { title: "Bank 103", href: "/bank-103", icon: Wallet },
+  { title: "Jenis Bahan", href: "/materials", icon: Layers },
 ];
 
   return (

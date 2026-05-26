@@ -23,7 +23,7 @@ from app.models.invoice_model import Invoice
 from app.models.sales_103_model import Sales103
 from app.models.bkpt_receivables_model import BKPtReceivable
 from app.models.bank_103_model import Bank103
-
+from app.api.routes.material_type_route import router as material_type_router
 # =========================
 # IMPORT ROUTES
 # =========================
@@ -99,3 +99,4 @@ app.include_router(invoice_router)
 app.include_router(sales_103_router)
 app.include_router(bkpt_receivables_router)
 app.include_router(bank_103_router)
+app.include_router(material_type_router)

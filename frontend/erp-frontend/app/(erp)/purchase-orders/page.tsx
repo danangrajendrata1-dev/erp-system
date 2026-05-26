@@ -42,6 +42,10 @@ function formatCurrency(value: unknown) {
   });
 }
 
+function isRimUnit(unit?: string | null) {
+  return String(unit || "").toLowerCase().includes("rim");
+}
+
 function normalizeArray<T>(values: T[] | undefined | null, defaultValue: T) {
   const result = [...(values || [])].slice(0, 14);
   while (result.length < 14) result.push(defaultValue);
@@ -60,6 +64,64 @@ function getTotalKeping(item: ProductionOrder) {
 
 function getKekurangan(item: ProductionOrder) {
   return Math.max(toNumber(item.quantity) - getTotalKeping(item), 0);
+}
+
+function getKepingPerRimFromItem(item: ProductionOrder) {
+  const quantity = toNumber(item.quantity);
+  const rim = toNumber(item.rim);
+
+  if (quantity > 0 && rim > 0) {
+    return quantity / rim;
+  }
+
+  return 0;
+}
+
+function convertKepingToDisplay(params: {
+  value: unknown;
+  unit?: string | null;
+  kepingPerRim: number;
+}) {
+  const { value, unit, kepingPerRim } = params;
+
+  const keping = toNumber(value);
+
+  if (keping === 0) return "";
+
+  if (isRimUnit(unit) && kepingPerRim > 0) {
+    return (keping / kepingPerRim).toLocaleString("id-ID", {
+      maximumFractionDigits: 4,
+    });
+  }
+
+  return keping.toLocaleString("id-ID", {
+    maximumFractionDigits: 2,
+  });
+}
+
+function getKekuranganDisplay(item: ProductionOrder) {
+  const kekuranganKeping = getKekurangan(item);
+  const kepingPerRim = getKepingPerRimFromItem(item);
+
+  if (isRimUnit(item.unit) && kepingPerRim > 0) {
+    return {
+      value: kekuranganKeping / kepingPerRim,
+      unit: "Rim",
+    };
+  }
+
+  return {
+    value: kekuranganKeping,
+    unit: "Keping",
+  };
+}
+
+function formatDisplayWithUnit(value: number, unit: string) {
+  if (!value || value <= 0) return "";
+
+  return `${value.toLocaleString("id-ID", {
+    maximumFractionDigits: 4,
+  })} ${unit}`;
 }
 
 function getGroupKey(item: ProductionOrder) {
@@ -84,10 +146,10 @@ function sortBKOrder(a: ProductionOrder, b: ProductionOrder) {
 
   if (orderA !== orderB) return orderA.localeCompare(orderB);
 
-  const poA = a.do_number || "";
-  const poB = b.do_number || "";
+  const doNumberA = a.do_number || "";
+  const doNumberB = b.do_number || "";
 
-  if (poA !== poB) return poA.localeCompare(poB);
+  if (doNumberA !== doNumberB) return doNumberA.localeCompare(doNumberB);
 
   return a.id - b.id;
 }
@@ -217,7 +279,8 @@ export default function PurchaseOrdersPage() {
                 </p>
                 <h1 className="mt-1 text-2xl font-bold">BKOrder</h1>
                 <p className="mt-1 text-sm text-slate-300">
-                  Satu PO bisa berisi banyak baris order seperti format Excel client.
+                  Satu DO NUMBER bisa berisi banyak baris order seperti format
+                  Excel client.
                 </p>
               </div>
 
@@ -225,7 +288,7 @@ export default function PurchaseOrdersPage() {
                 onClick={() => router.push("/purchase-orders/create")}
                 className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100 print:hidden"
               >
-                + Tambah PO / BKOrder
+                + Tambah BKOrder
               </button>
             </div>
           </div>
@@ -257,11 +320,7 @@ export default function PurchaseOrdersPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
                 Total Kekurangan
               </p>
-              <p className="mt-2 text-2xl font-bold text-amber-800">
-                {summary.totalKekurangan === 0
-                  ? "-"
-                  : summary.totalKekurangan.toLocaleString("id-ID")}
-              </p>
+              <p className="mt-2 text-2xl font-bold text-amber-800">-</p>
             </div>
           </div>
 
@@ -269,7 +328,7 @@ export default function PurchaseOrdersPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari NO.ORD, PO, PR, bahan, jenis cetak, spesifikasi..."
+              placeholder="Cari NO.ORD, DO NUMBER, PR, bahan, jenis cetak, spesifikasi..."
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 md:max-w-xl"
             />
 
@@ -306,7 +365,7 @@ export default function PurchaseOrdersPage() {
                     PO Date
                   </th>
                   <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
-                    PO
+                    DO NUMBER
                   </th>
                   <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
                     Deliv. Date
@@ -345,7 +404,7 @@ export default function PurchaseOrdersPage() {
                     TGL KIRIM / SELESAI
                   </th>
                   <th colSpan={14} className="border border-slate-700 px-3 py-3 text-center">
-                    TAGIHAN PARSIAL (Keping)
+                    TAGIHAN PARSIAL
                   </th>
                   <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
                     TOTAL (Keping)
@@ -403,7 +462,8 @@ export default function PurchaseOrdersPage() {
                       );
 
                       const totalKeping = getTotalKeping(item);
-                      const kekurangan = getKekurangan(item);
+                      const kepingPerRim = getKepingPerRimFromItem(item);
+                      const kekuranganDisplay = getKekuranganDisplay(item);
 
                       return (
                         <tr
@@ -496,7 +556,10 @@ export default function PurchaseOrdersPage() {
                           </td>
 
                           <td className="border border-slate-200 px-3 py-2 text-right font-semibold text-amber-700">
-                            {formatNumber(kekurangan)}
+                            {formatDisplayWithUnit(
+                              kekuranganDisplay.value,
+                              kekuranganDisplay.unit
+                            )}
                           </td>
 
                           {deliveryDates.map((dateValue, index) => (
@@ -513,7 +576,11 @@ export default function PurchaseOrdersPage() {
                               key={`partial-${item.id}-${index}`}
                               className="border border-slate-200 px-2 py-2 text-right text-slate-700"
                             >
-                              {formatNumber(partialValue)}
+                              {convertKepingToDisplay({
+                                value: partialValue,
+                                unit: item.unit,
+                                kepingPerRim,
+                              })}
                             </td>
                           ))}
 
@@ -559,7 +626,10 @@ export default function PurchaseOrdersPage() {
 
               <tfoot>
                 <tr className="bg-slate-100 font-bold text-slate-900">
-                  <td colSpan={11} className="border border-slate-300 px-3 py-3 text-right">
+                  <td
+                    colSpan={11}
+                    className="border border-slate-300 px-3 py-3 text-right"
+                  >
                     TOTAL
                   </td>
 
@@ -571,16 +641,22 @@ export default function PurchaseOrdersPage() {
                   <td className="border border-slate-300 px-3 py-3" />
 
                   <td className="border border-slate-300 px-3 py-3 text-right text-amber-700">
-                    {formatNumber(summary.totalKekurangan)}
+                    -
                   </td>
 
-                  <td colSpan={28} className="border border-slate-300 px-3 py-3" />
+                  <td
+                    colSpan={28}
+                    className="border border-slate-300 px-3 py-3"
+                  />
 
                   <td className="border border-slate-300 px-3 py-3 text-right">
                     {formatNumber(summary.totalTerkirim)}
                   </td>
 
-                  <td colSpan={2} className="border border-slate-300 px-3 py-3" />
+                  <td
+                    colSpan={2}
+                    className="border border-slate-300 px-3 py-3"
+                  />
                 </tr>
               </tfoot>
             </table>
