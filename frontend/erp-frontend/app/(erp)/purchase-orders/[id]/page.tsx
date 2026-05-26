@@ -116,9 +116,9 @@ function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload 
     null
   ).map((value) => toNumber(value));
 
-  const totalKeping =
-    toNumber(form.total_keping) ||
-    partials.reduce<number>((sum, value) => sum + toNumber(value), 0);
+  const totalKeping = partials.reduce<number>((sum, value) => {
+    return sum + toNumber(value);
+  }, 0);
 
   return {
     ...form,
@@ -226,6 +226,14 @@ export default function EditPurchaseOrderPage() {
   const kepingPerRim = useMemo(() => {
     return getKepingPerRimFromForm(form, cuttingInfo);
   }, [form, cuttingInfo]);
+
+  const totalTerkirimDisplay = useMemo(() => {
+    if (isRimUnit(form?.unit) && kepingPerRim > 0) {
+      return autoTotalKeping / kepingPerRim;
+    }
+
+    return autoTotalKeping;
+  }, [form?.unit, autoTotalKeping, kepingPerRim]);
 
   const kekuranganKeping = useMemo(() => {
     return Math.max(toNumber(form?.quantity) - autoTotalKeping, 0);
@@ -632,12 +640,14 @@ export default function EditPurchaseOrderPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">SAT</label>
-            <input
-              value={form.unit || ""}
+            <select
+              value={form.unit || "Rim"}
               onChange={(e) => updateField("unit", e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm"
-              placeholder="Rim / Keping"
-            />
+            >
+              <option value="Rim">Rim</option>
+              <option value="Keping">Keping</option>
+            </select>
           </div>
 
           <div>
@@ -717,26 +727,19 @@ export default function EditPurchaseOrderPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">
-              TOTAL (Keping)
+              TOTAL TERKIRIM
             </label>
             <input
-              type="number"
-              step="0.01"
-              value={numberInputValue(form.total_keping)}
-              onChange={(e) =>
-                updateField(
-                  "total_keping",
-                  e.target.value === "" ? null : Number(e.target.value)
-                )
-              }
-              className="w-full rounded-lg border px-3 py-2 text-sm"
+              value={formatDisplayValue(totalTerkirimDisplay, form.unit)}
+              readOnly
+              className="w-full rounded-lg border bg-gray-100 px-3 py-2 text-sm"
               placeholder="Otomatis dari tagihan parsial"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Auto dari Tagihan Parsial:{" "}
+              Total tersimpan untuk 103:{" "}
               {autoTotalKeping === 0
                 ? "-"
-                : autoTotalKeping.toLocaleString("id-ID")}
+                : `${autoTotalKeping.toLocaleString("id-ID")} keping`}
             </p>
           </div>
 

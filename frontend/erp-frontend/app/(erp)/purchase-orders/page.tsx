@@ -12,6 +12,7 @@ const REPEAT_COLUMNS = Array.from({ length: 14 }, (_, index) => index);
 
 function formatDate(value?: string | null) {
   if (!value) return "";
+
   return new Date(value).toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
@@ -26,6 +27,7 @@ function toNumber(value: unknown) {
 
 function formatNumber(value: unknown) {
   const numberValue = toNumber(value);
+
   if (numberValue === 0) return "";
 
   return numberValue.toLocaleString("id-ID", {
@@ -35,6 +37,7 @@ function formatNumber(value: unknown) {
 
 function formatCurrency(value: unknown) {
   const numberValue = toNumber(value);
+
   if (numberValue === 0) return "";
 
   return numberValue.toLocaleString("id-ID", {
@@ -48,7 +51,11 @@ function isRimUnit(unit?: string | null) {
 
 function normalizeArray<T>(values: T[] | undefined | null, defaultValue: T) {
   const result = [...(values || [])].slice(0, 14);
-  while (result.length < 14) result.push(defaultValue);
+
+  while (result.length < 14) {
+    result.push(defaultValue);
+  }
+
   return result;
 }
 
@@ -62,7 +69,7 @@ function getTotalKeping(item: ProductionOrder) {
   return toNumber(item.total_keping) || partialTotal;
 }
 
-function getKekurangan(item: ProductionOrder) {
+function getKekuranganKeping(item: ProductionOrder) {
   return Math.max(toNumber(item.quantity) - getTotalKeping(item), 0);
 }
 
@@ -83,7 +90,6 @@ function convertKepingToDisplay(params: {
   kepingPerRim: number;
 }) {
   const { value, unit, kepingPerRim } = params;
-
   const keping = toNumber(value);
 
   if (keping === 0) return "";
@@ -100,7 +106,7 @@ function convertKepingToDisplay(params: {
 }
 
 function getKekuranganDisplay(item: ProductionOrder) {
-  const kekuranganKeping = getKekurangan(item);
+  const kekuranganKeping = getKekuranganKeping(item);
   const kepingPerRim = getKepingPerRimFromItem(item);
 
   if (isRimUnit(item.unit) && kepingPerRim > 0) {
@@ -112,6 +118,23 @@ function getKekuranganDisplay(item: ProductionOrder) {
 
   return {
     value: kekuranganKeping,
+    unit: "Keping",
+  };
+}
+
+function getTotalTerkirimDisplay(item: ProductionOrder) {
+  const totalKeping = getTotalKeping(item);
+  const kepingPerRim = getKepingPerRimFromItem(item);
+
+  if (isRimUnit(item.unit) && kepingPerRim > 0) {
+    return {
+      value: totalKeping / kepingPerRim,
+      unit: "Rim",
+    };
+  }
+
+  return {
+    value: totalKeping,
     unit: "Keping",
   };
 }
@@ -149,7 +172,9 @@ function sortBKOrder(a: ProductionOrder, b: ProductionOrder) {
   const doNumberA = a.do_number || "";
   const doNumberB = b.do_number || "";
 
-  if (doNumberA !== doNumberB) return doNumberA.localeCompare(doNumberB);
+  if (doNumberA !== doNumberB) {
+    return doNumberA.localeCompare(doNumberB);
+  }
 
   return a.id - b.id;
 }
@@ -246,14 +271,15 @@ export default function PurchaseOrdersPage() {
     return filteredData.reduce(
       (acc, item) => {
         acc.totalOrderKeping += toNumber(item.quantity);
-        acc.totalTerkirim += getTotalKeping(item);
-        acc.totalKekurangan += getKekurangan(item);
+        acc.totalTerkirimKeping += getTotalKeping(item);
+        acc.totalKekuranganKeping += getKekuranganKeping(item);
+
         return acc;
       },
       {
         totalOrderKeping: 0,
-        totalTerkirim: 0,
-        totalKekurangan: 0,
+        totalTerkirimKeping: 0,
+        totalKekuranganKeping: 0,
       }
     );
   }, [filteredData]);
@@ -277,7 +303,9 @@ export default function PurchaseOrdersPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">
                   Buku Order
                 </p>
+
                 <h1 className="mt-1 text-2xl font-bold">BKOrder</h1>
+
                 <p className="mt-1 text-sm text-slate-300">
                   Satu DO NUMBER bisa berisi banyak baris order seperti format
                   Excel client.
@@ -298,10 +326,15 @@ export default function PurchaseOrdersPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Total Order Keping
               </p>
+
               <p className="mt-2 text-2xl font-bold text-slate-900">
                 {summary.totalOrderKeping === 0
                   ? "-"
                   : summary.totalOrderKeping.toLocaleString("id-ID")}
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500">
+                Summary ini tetap dalam keping untuk kebutuhan data internal.
               </p>
             </div>
 
@@ -309,10 +342,11 @@ export default function PurchaseOrdersPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
                 Total Terkirim
               </p>
-              <p className="mt-2 text-2xl font-bold text-emerald-800">
-                {summary.totalTerkirim === 0
-                  ? "-"
-                  : summary.totalTerkirim.toLocaleString("id-ID")}
+
+              <p className="mt-2 text-2xl font-bold text-emerald-800">-</p>
+
+              <p className="mt-1 text-xs text-emerald-700">
+                Total campuran Rim/Keping ditampilkan per baris order.
               </p>
             </div>
 
@@ -320,7 +354,12 @@ export default function PurchaseOrdersPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
                 Total Kekurangan
               </p>
+
               <p className="mt-2 text-2xl font-bold text-amber-800">-</p>
+
+              <p className="mt-1 text-xs text-amber-700">
+                Kekurangan mengikuti SAT masing-masing order.
+              </p>
             </div>
           </div>
 
@@ -355,77 +394,162 @@ export default function PurchaseOrdersPage() {
             <table className="min-w-[2800px] border-collapse text-xs">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-800 text-white">
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     TGL
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     NO.ORD
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     PO Date
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     DO NUMBER
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     Deliv. Date
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     PR
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     UKURAN
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     JENIS BAHAN
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     JENIS CETAK
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     SPESIFIKASI
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     SAT
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-right"
+                  >
                     KEPING
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-right"
+                  >
                     Rim
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-right"
+                  >
                     HARGA
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-right"
+                  >
                     KEKURANGAN
                   </th>
-                  <th colSpan={14} className="border border-slate-700 px-3 py-3 text-center">
+
+                  <th
+                    colSpan={14}
+                    className="border border-slate-700 px-3 py-3 text-center"
+                  >
                     TGL KIRIM / SELESAI
                   </th>
-                  <th colSpan={14} className="border border-slate-700 px-3 py-3 text-center">
+
+                  <th
+                    colSpan={14}
+                    className="border border-slate-700 px-3 py-3 text-center"
+                  >
                     TAGIHAN PARSIAL
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-right">
-                    TOTAL (Keping)
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-right"
+                  >
+                    TOTAL TERKIRIM
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-left">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-left"
+                  >
                     STATUS
                   </th>
-                  <th rowSpan={2} className="border border-slate-700 px-3 py-3 text-center print:hidden">
+
+                  <th
+                    rowSpan={2}
+                    className="border border-slate-700 px-3 py-3 text-center print:hidden"
+                  >
                     AKSI
                   </th>
                 </tr>
 
                 <tr className="bg-slate-700 text-white">
                   {REPEAT_COLUMNS.map((index) => (
-                    <th key={`date-head-${index}`} className="border border-slate-600 px-2 py-2">
+                    <th
+                      key={`date-head-${index}`}
+                      className="border border-slate-600 px-2 py-2"
+                    >
                       {index + 1}
                     </th>
                   ))}
 
                   {REPEAT_COLUMNS.map((index) => (
-                    <th key={`partial-head-${index}`} className="border border-slate-600 px-2 py-2">
+                    <th
+                      key={`partial-head-${index}`}
+                      className="border border-slate-600 px-2 py-2"
+                    >
                       {index + 1}
                     </th>
                   ))}
@@ -435,13 +559,19 @@ export default function PurchaseOrdersPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={46} className="border px-3 py-10 text-center text-slate-500">
+                    <td
+                      colSpan={46}
+                      className="border px-3 py-10 text-center text-slate-500"
+                    >
                       Memuat data BKOrder...
                     </td>
                   </tr>
                 ) : groupedData.length === 0 ? (
                   <tr>
-                    <td colSpan={46} className="border px-3 py-10 text-center text-slate-500">
+                    <td
+                      colSpan={46}
+                      className="border px-3 py-10 text-center text-slate-500"
+                    >
                       Belum ada data BKOrder.
                     </td>
                   </tr>
@@ -461,9 +591,10 @@ export default function PurchaseOrdersPage() {
                         null
                       );
 
-                      const totalKeping = getTotalKeping(item);
                       const kepingPerRim = getKepingPerRimFromItem(item);
                       const kekuranganDisplay = getKekuranganDisplay(item);
+                      const totalTerkirimDisplay =
+                        getTotalTerkirimDisplay(item);
 
                       return (
                         <tr
@@ -476,27 +607,45 @@ export default function PurchaseOrdersPage() {
                         >
                           {isFirstRow && (
                             <>
-                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top font-medium text-slate-700">
+                              <td
+                                rowSpan={rowSpan}
+                                className="border border-slate-200 bg-slate-50 px-3 py-3 align-top font-medium text-slate-700"
+                              >
                                 {formatDate(group.header.order_date)}
                               </td>
 
-                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top font-semibold text-slate-900">
+                              <td
+                                rowSpan={rowSpan}
+                                className="border border-slate-200 bg-slate-50 px-3 py-3 align-top font-semibold text-slate-900"
+                              >
                                 {group.header.order_number}
                               </td>
 
-                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top text-slate-700">
+                              <td
+                                rowSpan={rowSpan}
+                                className="border border-slate-200 bg-slate-50 px-3 py-3 align-top text-slate-700"
+                              >
                                 {formatDate(group.header.po_date)}
                               </td>
 
-                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top font-semibold text-slate-900">
+                              <td
+                                rowSpan={rowSpan}
+                                className="border border-slate-200 bg-slate-50 px-3 py-3 align-top font-semibold text-slate-900"
+                              >
                                 {group.header.do_number}
                               </td>
 
-                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top text-slate-700">
+                              <td
+                                rowSpan={rowSpan}
+                                className="border border-slate-200 bg-slate-50 px-3 py-3 align-top text-slate-700"
+                              >
                                 {formatDate(group.header.delivery_date)}
                               </td>
 
-                              <td rowSpan={rowSpan} className="border border-slate-200 bg-slate-50 px-3 py-3 align-top">
+                              <td
+                                rowSpan={rowSpan}
+                                className="border border-slate-200 bg-slate-50 px-3 py-3 align-top"
+                              >
                                 <div className="min-w-[170px]">
                                   <div className="font-semibold text-slate-900">
                                     {group.header.customer_name}
@@ -585,7 +734,10 @@ export default function PurchaseOrdersPage() {
                           ))}
 
                           <td className="border border-slate-200 px-3 py-2 text-right font-bold text-slate-900">
-                            {formatNumber(totalKeping)}
+                            {formatDisplayWithUnit(
+                              totalTerkirimDisplay.value,
+                              totalTerkirimDisplay.unit
+                            )}
                           </td>
 
                           <td className="border border-slate-200 px-3 py-2">
@@ -650,7 +802,7 @@ export default function PurchaseOrdersPage() {
                   />
 
                   <td className="border border-slate-300 px-3 py-3 text-right">
-                    {formatNumber(summary.totalTerkirim)}
+                    -
                   </td>
 
                   <td

@@ -78,16 +78,12 @@ function getKepingPerRimFromForm(
     kepingPerRim: number;
   }
 ) {
-  if (cuttingInfo.kepingPerRim > 0) {
-    return cuttingInfo.kepingPerRim;
-  }
+  if (cuttingInfo.kepingPerRim > 0) return cuttingInfo.kepingPerRim;
 
   const quantity = toNumber(form?.quantity);
   const rim = toNumber(form?.rim);
 
-  if (quantity > 0 && rim > 0) {
-    return quantity / rim;
-  }
+  if (quantity > 0 && rim > 0) return quantity / rim;
 
   return 0;
 }
@@ -112,7 +108,6 @@ function convertKepingToDisplay(params: {
   kepingPerRim: number;
 }) {
   const { value, unit, kepingPerRim } = params;
-
   const keping = toNumber(value);
 
   if (keping === 0) return "";
@@ -138,9 +133,9 @@ function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload 
     null
   ).map((value) => toNumber(value));
 
-  const totalKeping =
-    toNumber(form.total_keping) ||
-    partials.reduce<number>((sum, value) => sum + toNumber(value), 0);
+  const totalKeping = partials.reduce<number>((sum, value) => {
+    return sum + toNumber(value);
+  }, 0);
 
   return {
     ...form,
@@ -218,9 +213,7 @@ function CreatePurchaseOrderContent() {
       null
     );
 
-    return values.reduce<number>((sum, value) => {
-      return sum + toNumber(value);
-    }, 0);
+    return values.reduce<number>((sum, value) => sum + toNumber(value), 0);
   }, [form.partial_billing_quantities]);
 
   const cuttingInfo = useMemo(() => {
@@ -246,6 +239,14 @@ function CreatePurchaseOrderContent() {
   const kepingPerRim = useMemo(() => {
     return getKepingPerRimFromForm(form, cuttingInfo);
   }, [form, cuttingInfo]);
+
+  const totalTerkirimDisplay = useMemo(() => {
+    if (isRimUnit(form.unit) && kepingPerRim > 0) {
+      return autoTotalKeping / kepingPerRim;
+    }
+
+    return autoTotalKeping;
+  }, [form.unit, autoTotalKeping, kepingPerRim]);
 
   const kekuranganKeping = useMemo(() => {
     return Math.max(toNumber(form.quantity) - autoTotalKeping, 0);
@@ -628,12 +629,14 @@ function CreatePurchaseOrderContent() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">SAT</label>
-            <input
-              value={form.unit || ""}
+            <select
+              value={form.unit || "Rim"}
               onChange={(e) => updateField("unit", e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm"
-              placeholder="Rim / Keping"
-            />
+            >
+              <option value="Rim">Rim</option>
+              <option value="Keping">Keping</option>
+            </select>
           </div>
 
           <div>
@@ -713,26 +716,19 @@ function CreatePurchaseOrderContent() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">
-              TOTAL (Keping)
+              TOTAL TERKIRIM
             </label>
             <input
-              type="number"
-              step="0.01"
-              value={numberInputValue(form.total_keping)}
-              onChange={(e) =>
-                updateField(
-                  "total_keping",
-                  e.target.value === "" ? null : Number(e.target.value)
-                )
-              }
-              className="w-full rounded-lg border px-3 py-2 text-sm"
+              value={formatDisplayValue(totalTerkirimDisplay, form.unit)}
+              readOnly
+              className="w-full rounded-lg border bg-gray-100 px-3 py-2 text-sm"
               placeholder="Otomatis dari tagihan parsial"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Auto dari Tagihan Parsial:{" "}
+              Total tersimpan untuk 103:{" "}
               {autoTotalKeping === 0
                 ? "-"
-                : autoTotalKeping.toLocaleString("id-ID")}
+                : `${autoTotalKeping.toLocaleString("id-ID")} keping`}
             </p>
           </div>
 
