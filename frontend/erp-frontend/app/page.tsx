@@ -15,26 +15,32 @@ export default function AuthPage() {
   const [error, setError] = useState("");
 
   const handleSubmit = async () => {
-    try {
-      setError("");
+  try {
+    setError("");
 
-      if (isLogin) {
-        const response = await loginUser(email, password);
+    if (isLogin) {
+      const response = await loginUser(email, password);
 
-        localStorage.setItem("token", response.access_token);
-        localStorage.setItem("user", JSON.stringify(response.user));
-
-        router.push("/dashboard");
-      } else {
-        await registerUser(username, email, password);
-
-        alert("Register berhasil. Silakan login.");
-        setIsLogin(true);
+      if (!response?.access_token) {
+        setError("Login gagal. Token tidak diterima.");
+        return;
       }
-    } catch {
-      setError("Proses gagal. Cek email/password atau backend.");
+
+      localStorage.setItem("token", response.access_token);
+      localStorage.setItem("user", JSON.stringify(response.user ?? null));
+
+      window.location.href = "/dashboard";
+    } else {
+      await registerUser(username, email, password);
+
+      alert("Register berhasil. Silakan login.");
+      setIsLogin(true);
     }
-  };
+  } catch (err) {
+    console.error("AUTH ERROR:", err);
+    setError("Proses gagal. Cek email/password.");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
