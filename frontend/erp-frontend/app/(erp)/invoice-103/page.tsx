@@ -9,7 +9,6 @@ import {
   RefreshCcw,
   FileText,
   PlusCircle,
-  Eye,
 } from "lucide-react";
 
 import api from "@/services/api";
@@ -73,12 +72,6 @@ type Sales103Row = {
   terms_of_payment?: string;
 };
 
-type BkptRow = {
-  id?: number | string;
-  no_invoice?: string;
-  invoice_number?: string;
-};
-
 function getArrayData<T>(res: any): T[] {
   if (Array.isArray(res?.data)) return res.data;
   if (Array.isArray(res?.data?.data)) return res.data.data;
@@ -94,7 +87,9 @@ function normalizeText(value: any) {
 function toNumber(value: any) {
   if (value === null || value === undefined || value === "") return 0;
 
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
 
   const raw = String(value)
     .replace(/\s/g, "")
@@ -172,29 +167,41 @@ function terbilangRupiah(value: number) {
     n = Math.floor(n);
 
     if (n < 12) return angka[n];
+
     if (n < 20) return `${baca(n - 10)} belas`;
+
     if (n < 100) {
       const puluh = Math.floor(n / 10);
       const sisa = n % 10;
       return `${baca(puluh)} puluh${sisa ? ` ${baca(sisa)}` : ""}`;
     }
-    if (n < 200) return `seratus${n - 100 ? ` ${baca(n - 100)}` : ""}`;
+
+    if (n < 200) {
+      return `seratus${n - 100 ? ` ${baca(n - 100)}` : ""}`;
+    }
+
     if (n < 1000) {
       const ratus = Math.floor(n / 100);
       const sisa = n % 100;
       return `${baca(ratus)} ratus${sisa ? ` ${baca(sisa)}` : ""}`;
     }
-    if (n < 2000) return `seribu${n - 1000 ? ` ${baca(n - 1000)}` : ""}`;
+
+    if (n < 2000) {
+      return `seribu${n - 1000 ? ` ${baca(n - 1000)}` : ""}`;
+    }
+
     if (n < 1_000_000) {
       const ribu = Math.floor(n / 1000);
       const sisa = n % 1000;
       return `${baca(ribu)} ribu${sisa ? ` ${baca(sisa)}` : ""}`;
     }
+
     if (n < 1_000_000_000) {
       const juta = Math.floor(n / 1_000_000);
       const sisa = n % 1_000_000;
       return `${baca(juta)} juta${sisa ? ` ${baca(sisa)}` : ""}`;
     }
+
     if (n < 1_000_000_000_000) {
       const miliar = Math.floor(n / 1_000_000_000);
       const sisa = n % 1_000_000_000;
@@ -210,10 +217,6 @@ function terbilangRupiah(value: number) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function getInvoiceNo(row: Sales103Row) {
-  return normalizeText(row.no_invoice || row.invoice_number);
-}
-
 function getCustomer(row: Sales103Row) {
   return normalizeText(
     row.pelanggan || row.langganan || row.customer || row.customer_name
@@ -221,7 +224,9 @@ function getCustomer(row: Sales103Row) {
 }
 
 function getDescription(row: Sales103Row) {
-  return normalizeText(row.description || row.spesifikasi || row.jenis_cetak || "-");
+  return normalizeText(
+    row.description || row.spesifikasi || row.jenis_cetak || "-"
+  );
 }
 
 function getQuantity(row: Sales103Row) {
@@ -264,15 +269,20 @@ function getGrandTotal(row: Sales103Row) {
   return getDpp(row) + getVat(row);
 }
 
-function getPoDate(row: Sales103Row) {
+function getPoDate(row?: Sales103Row) {
+  if (!row) return "";
   return normalizeText(row.po_date || row.tgl || row.date);
 }
 
-function getPoNumber(row: Sales103Row) {
-  return normalizeText(row.po_number || row.po_no || row.po || row.no_ord || row.no_order);
+function getPoNumber(row?: Sales103Row) {
+  if (!row) return "";
+  return normalizeText(
+    row.po_number || row.po_no || row.po || row.no_ord || row.no_order
+  );
 }
 
-function getDoNumber(row: Sales103Row) {
+function getDoNumber(row?: Sales103Row) {
+  if (!row) return "";
   return normalizeText(row.do_number || row.do_no);
 }
 
@@ -285,7 +295,10 @@ function uniquePoRows(rows: Sales103Row[]) {
     const doNumber = getDoNumber(row);
 
     const key = `${poDate}|${poNumber}|${doNumber}`;
-    if (!map.has(key)) map.set(key, row);
+
+    if (!map.has(key)) {
+      map.set(key, row);
+    }
   });
 
   return Array.from(map.values());
@@ -295,10 +308,14 @@ export default function Invoice103PrintPage() {
   const params = useParams();
   const router = useRouter();
 
-  const noInvoice = decodeURIComponent(String(params?.no_invoice ?? ""));
+  const rawNoInvoice = params?.no_invoice;
+  const noInvoice = decodeURIComponent(
+    Array.isArray(rawNoInvoice)
+      ? String(rawNoInvoice[0] ?? "")
+      : String(rawNoInvoice ?? "")
+  );
 
   const [rows, setRows] = useState<Sales103Row[]>([]);
-  const [bkptRows, setBkptRows] = useState<BkptRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -307,30 +324,16 @@ export default function Invoice103PrintPage() {
       setLoading(true);
       setError("");
 
-      const [salesRes, bkptRes] = await Promise.allSettled([
-        api.get("/sales-103/"),
-        api.get("/bkpt/"),
-      ]);
-
-      if (salesRes.status === "rejected") {
-        throw salesRes.reason;
-      }
-
-      const allSales = getArrayData<Sales103Row>(salesRes.value);
-
-      const filtered = allSales.filter(
-        (item) => getInvoiceNo(item).toLowerCase() === noInvoice.toLowerCase()
+      const res = await api.get(
+        `/sales-103/invoice/${encodeURIComponent(noInvoice)}`
       );
 
-      setRows(filtered);
+      const invoiceRows = getArrayData<Sales103Row>(res);
 
-      if (bkptRes.status === "fulfilled") {
-        setBkptRows(getArrayData<BkptRow>(bkptRes.value));
-      } else {
-        setBkptRows([]);
-      }
+      setRows(invoiceRows);
     } catch (err: any) {
       console.error(err);
+      setRows([]);
       setError(
         err?.response?.data?.detail ||
           err?.response?.data?.message ||
@@ -342,7 +345,9 @@ export default function Invoice103PrintPage() {
   };
 
   useEffect(() => {
-    if (noInvoice) fetchData();
+    if (noInvoice) {
+      fetchData();
+    }
   }, [noInvoice]);
 
   const invoiceInfo = useMemo(() => {
@@ -354,25 +359,20 @@ export default function Invoice103PrintPage() {
 
     const poRows = uniquePoRows(rows);
 
-    const alreadyInBkpt = bkptRows.some((item) => {
-      const inv = normalizeText(item.no_invoice || item.invoice_number);
-      return inv.toLowerCase() === noInvoice.toLowerCase();
-    });
-
     return {
       first,
       subtotal,
       vat,
       grandTotal,
       poRows,
-      alreadyInBkpt,
       customer: first ? getCustomer(first) : "-",
       address:
-        normalizeText(first?.ship_to_address || first?.alamat || first?.address) || "-",
+        normalizeText(first?.ship_to_address || first?.alamat || first?.address) ||
+        "-",
       invoiceDate: first?.tgl || first?.date,
       terms: normalizeText(first?.terms_of_payment) || "30 Days",
     };
-  }, [rows, bkptRows, noInvoice]);
+  }, [rows]);
 
   const handlePrint = () => {
     window.print();
@@ -472,23 +472,13 @@ export default function Invoice103PrintPage() {
               Kembali
             </Link>
 
-            {invoiceInfo.alreadyInBkpt ? (
-              <Link
-                href={`/bkpt?no_invoice=${encodeURIComponent(noInvoice)}`}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
-              >
-                <Eye className="h-4 w-4" />
-                Lihat BKPt
-              </Link>
-            ) : (
-              <Link
-                href={`/bkpt/create?no_invoice=${encodeURIComponent(noInvoice)}`}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-              >
-                <PlusCircle className="h-4 w-4" />
-                Masuk BKPt
-              </Link>
-            )}
+            <Link
+              href={`/bkpt/create?no_invoice=${encodeURIComponent(noInvoice)}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Masuk BKPt
+            </Link>
 
             <button
               onClick={fetchData}
@@ -552,7 +542,12 @@ export default function Invoice103PrintPage() {
                     </>
                   ) : (
                     invoiceInfo.poRows.map((poRow, index) => (
-                      <div className="contents" key={`${getPoNumber(poRow)}-${index}`}>
+                      <div
+                        className="contents"
+                        key={`${getPoDate(poRow)}-${getPoNumber(
+                          poRow
+                        )}-${getDoNumber(poRow)}-${index}`}
+                      >
                         <div>PO Date</div>
                         <div>:</div>
                         <div>{formatDate(getPoDate(poRow))}</div>
@@ -604,16 +599,22 @@ export default function Invoice103PrintPage() {
                       <td className="border-x border-slate-800 px-2 py-3 text-center align-top">
                         {index + 1}
                       </td>
+
                       <td className="border-x border-slate-800 px-3 py-3 align-top">
                         {getDescription(row)}
                       </td>
+
                       <td className="border-x border-slate-800 px-3 py-3 text-center align-top">
-                        <span>{formatNumber(quantity, quantity % 1 ? 2 : 0)}</span>
+                        <span>
+                          {formatNumber(quantity, quantity % 1 ? 2 : 0)}
+                        </span>
                         <span className="ml-4">{unit}</span>
                       </td>
+
                       <td className="border-x border-slate-800 px-3 py-3 text-right align-top">
                         {formatNumber(price, price % 1 ? 2 : 0)}
                       </td>
+
                       <td className="border-x border-slate-800 px-3 py-3 text-right align-top">
                         {formatCurrency(amount)}
                       </td>
