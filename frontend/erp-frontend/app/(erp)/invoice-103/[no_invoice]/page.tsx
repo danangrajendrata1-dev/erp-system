@@ -437,7 +437,7 @@ export default function Invoice103DetailPage() {
         )}
 
         <div className="print-area mx-auto max-w-5xl rounded-2xl border bg-white p-6 shadow-sm">
-          <div className="invoice-paper min-h-[1120px] border border-slate-200 bg-white p-6 text-[12px] text-slate-900">
+          <div className="invoice-paper border border-slate-200 bg-white p-6 text-[12px] text-slate-900">
             <div className="mb-4">
               <div className="text-[12px] font-semibold tracking-wide">
                 CV. LIBRA OFFSET INDONESIA
