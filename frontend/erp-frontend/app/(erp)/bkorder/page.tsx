@@ -147,6 +147,28 @@ function formatDisplayWithUnit(value: number, unit: string) {
   })} ${unit}`;
 }
 
+function addDisplaySummary(
+  summary: Record<string, number>,
+  item: {
+    value: number;
+    unit: string;
+  }
+) {
+  if (!item.value || item.value <= 0) return summary;
+
+  summary[item.unit] = (summary[item.unit] || 0) + item.value;
+
+  return summary;
+}
+
+function formatSummaryByUnit(summary: Record<string, number>) {
+  const parts = Object.entries(summary)
+    .filter(([, value]) => value > 0)
+    .map(([unit, value]) => formatDisplayWithUnit(value, unit));
+
+  return parts.length > 0 ? parts.join(" + ") : "-";
+}
+
 function getGroupKey(item: BKOrder) {
   return [
     item.order_date || "",
@@ -273,6 +295,14 @@ export default function PurchaseOrdersPage() {
         acc.totalOrderKeping += toNumber(item.quantity);
         acc.totalTerkirimKeping += getTotalKeping(item);
         acc.totalKekuranganKeping += getKekuranganKeping(item);
+        addDisplaySummary(
+          acc.totalTerkirimDisplay,
+          getTotalTerkirimDisplay(item)
+        );
+        addDisplaySummary(
+          acc.totalKekuranganDisplay,
+          getKekuranganDisplay(item)
+        );
 
         return acc;
       },
@@ -280,9 +310,14 @@ export default function PurchaseOrdersPage() {
         totalOrderKeping: 0,
         totalTerkirimKeping: 0,
         totalKekuranganKeping: 0,
+        totalTerkirimDisplay: {} as Record<string, number>,
+        totalKekuranganDisplay: {} as Record<string, number>,
       }
     );
   }, [filteredData]);
+
+  const totalTerkirimText = formatSummaryByUnit(summary.totalTerkirimDisplay);
+  const totalKekuranganText = formatSummaryByUnit(summary.totalKekuranganDisplay);
 
   async function handleDelete(id: number) {
     const confirmed = confirm("Yakin ingin menghapus data BKOrder ini?");
@@ -343,10 +378,12 @@ export default function PurchaseOrdersPage() {
                 Total Terkirim
               </p>
 
-              <p className="mt-2 text-2xl font-bold text-emerald-800">-</p>
+              <p className="mt-2 text-2xl font-bold text-emerald-800">
+                {totalTerkirimText}
+              </p>
 
               <p className="mt-1 text-xs text-emerald-700">
-                Total campuran Rim/Keping ditampilkan per baris order.
+                Total mengikuti SAT masing-masing order.
               </p>
             </div>
 
@@ -355,7 +392,9 @@ export default function PurchaseOrdersPage() {
                 Total Kekurangan
               </p>
 
-              <p className="mt-2 text-2xl font-bold text-amber-800">-</p>
+              <p className="mt-2 text-2xl font-bold text-amber-800">
+                {totalKekuranganText}
+              </p>
 
               <p className="mt-1 text-xs text-amber-700">
                 Kekurangan mengikuti SAT masing-masing order.
@@ -793,7 +832,7 @@ export default function PurchaseOrdersPage() {
                   <td className="border border-slate-300 px-3 py-3" />
 
                   <td className="border border-slate-300 px-3 py-3 text-right text-amber-700">
-                    -
+                    {totalKekuranganText}
                   </td>
 
                   <td
@@ -802,7 +841,7 @@ export default function PurchaseOrdersPage() {
                   />
 
                   <td className="border border-slate-300 px-3 py-3 text-right">
-                    -
+                    {totalTerkirimText}
                   </td>
 
                   <td
