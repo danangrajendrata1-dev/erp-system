@@ -1,6 +1,6 @@
 from typing import List
 from urllib.parse import unquote
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -79,7 +79,10 @@ def get_piutang(row):
 
 
 def to_decimal_money(value):
-    return Decimal(str(value or 0)).quantize(Decimal("0.01"))
+    return Decimal(str(value or 0)).quantize(
+        Decimal("1"),
+        rounding=ROUND_HALF_UP,
+    )
 
 
 def get_rows_by_invoice(rows, no_invoice: str):

@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 
 from fastapi import HTTPException
@@ -35,6 +35,10 @@ def _auto_total_keping(values: List[float]) -> Decimal:
     return Decimal(str(sum(values)))
 
 
+def _round_money(value) -> Decimal:
+    return Decimal(value or 0).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+
 class BKOrderService:
     def __init__(self, db: Session):
         self.repository = BKOrderRepository(db)
@@ -46,6 +50,9 @@ class BKOrderService:
 
         if payload.get("total_keping") in (None, 0, Decimal("0"), ""):
             payload["total_keping"] = _auto_total_keping(payload["partial_billing_quantities"])
+
+        if "price" in payload:
+            payload["price"] = _round_money(payload.get("price"))
 
         return BKOrderCreate(**payload)
 
@@ -59,6 +66,9 @@ class BKOrderService:
             payload["partial_billing_quantities"] = _normalize_numbers(payload.get("partial_billing_quantities"))
             if payload.get("total_keping") in (None, 0, Decimal("0"), ""):
                 payload["total_keping"] = _auto_total_keping(payload["partial_billing_quantities"])
+
+        if "price" in payload:
+            payload["price"] = _round_money(payload.get("price"))
 
         return BKOrderUpdate(**payload)
 

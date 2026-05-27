@@ -31,19 +31,28 @@ function toNumber(value: string) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function roundMoney(value: string) {
+  return Math.round(toNumber(value));
+}
+
 export default function CreateBank103Page() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(initialForm);
   const [saving, setSaving] = useState(false);
 
   const previewSaldo = useMemo(() => {
-    return toNumber(form.saldo);
+    return roundMoney(form.saldo);
   }, [form.saldo]);
 
   function updateField(name: keyof FormState, value: string) {
+    const moneyFields: Array<keyof FormState> = ["debet", "kredit", "saldo"];
+
     setForm((prev) => ({
       ...prev,
-      [name]: value,
+      [name]:
+        moneyFields.includes(name) && value !== ""
+          ? String(roundMoney(value))
+          : value,
     }));
   }
 
@@ -54,9 +63,9 @@ export default function CreateBank103Page() {
       tgl: form.tgl || null,
       kode: form.kode || null,
       keterangan: form.keterangan || null,
-      debet: toNumber(form.debet),
-      kredit: toNumber(form.kredit),
-      saldo: toNumber(form.saldo),
+      debet: roundMoney(form.debet),
+      kredit: roundMoney(form.kredit),
+      saldo: roundMoney(form.saldo),
     };
 
     try {
@@ -147,6 +156,7 @@ export default function CreateBank103Page() {
             </label>
             <input
               type="number"
+              step="1"
               value={form.debet}
               onChange={(e) => updateField("debet", e.target.value)}
               placeholder="Kosongkan jika tidak ada"
@@ -163,6 +173,7 @@ export default function CreateBank103Page() {
             </label>
             <input
               type="number"
+              step="1"
               value={form.kredit}
               onChange={(e) => updateField("kredit", e.target.value)}
               placeholder="Kosongkan jika tidak ada"
@@ -176,6 +187,7 @@ export default function CreateBank103Page() {
             </label>
             <input
               type="number"
+              step="1"
               value={form.saldo}
               onChange={(e) => updateField("saldo", e.target.value)}
               placeholder="Saldo akhir sesuai buku bank"

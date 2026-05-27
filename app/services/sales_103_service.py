@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy.orm import Session
 
 from app.repositories.sales_103_repository import Sales103Repository
@@ -8,6 +8,14 @@ from app.schemas.sales_103_schema import Sales103Create, Sales103Update
 class Sales103Service:
     def __init__(self):
         self.repository = Sales103Repository()
+
+    def round_money(self, value):
+        """
+        Semua nilai rupiah disimpan sebagai angka penuh.
+        Contoh: 9999.50 menjadi 10000, 9999.49 menjadi 9999.
+        """
+
+        return Decimal(value or 0).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
     def calculate_values(self, data):
         """
@@ -25,7 +33,7 @@ class Sales103Service:
         """
 
         jml = data.jml or Decimal("0")
-        harga = data.harga or Decimal("0")
+        harga = self.round_money(data.harga)
 
         dpp = data.dpp
         ppn_rate = data.ppn_rate if data.ppn_rate is not None else Decimal("11")
@@ -40,14 +48,18 @@ class Sales103Service:
 
         if dpp is None:
             dpp = jml * harga
+        dpp = self.round_money(dpp)
 
         if ppn_keluar is None:
             ppn_keluar = (dpp * ppn_rate / Decimal("100")) - ppn_adjustment
+        ppn_keluar = self.round_money(ppn_keluar)
 
         if piutang_dagang is None:
             piutang_dagang = dpp + ppn_keluar
+        piutang_dagang = self.round_money(piutang_dagang)
+        ppn_adjustment = self.round_money(ppn_adjustment)
 
-        return dpp, ppn_rate, ppn_adjustment, ppn_keluar, piutang_dagang
+        return harga, dpp, ppn_rate, ppn_adjustment, ppn_keluar, piutang_dagang
 
     def get_all(self, db: Session):
         return self.repository.get_all(db)
@@ -55,8 +67,15 @@ class Sales103Service:
     def get_by_id(self, db: Session, sales_103_id: int):
         return self.repository.get_by_id(db, sales_103_id)
 
+    def get_invoice_number(self, db: Session, current_invoice):
+        if current_invoice and str(current_invoice).strip():
+            return str(current_invoice).strip()
+
+        return self.repository.get_next_invoice_number(db)
+
     def create(self, db: Session, data: Sales103Create):
         (
+            harga,
             dpp,
             ppn_rate,
             ppn_adjustment,
@@ -66,6 +85,8 @@ class Sales103Service:
 
         payload = data.model_copy(
             update={
+                "no_invoice": self.get_invoice_number(db, data.no_invoice),
+                "harga": harga,
                 "dpp": dpp,
                 "ppn_rate": ppn_rate,
                 "ppn_adjustment": ppn_adjustment,
@@ -138,6 +159,7 @@ class Sales103Service:
         )
 
         (
+            harga,
             dpp,
             ppn_rate,
             ppn_adjustment,
@@ -148,13 +170,13 @@ class Sales103Service:
         payload = Sales103Update(
             tgl=merged_data.tgl,
             no_ord=merged_data.no_ord,
-            no_invoice=merged_data.no_invoice,
+            no_invoice=self.get_invoice_number(db, merged_data.no_invoice),
             no_faktur=merged_data.no_faktur,
             langganan=merged_data.langganan,
             jenis_cetak=merged_data.jenis_cetak,
             jml=merged_data.jml,
             sat=merged_data.sat,
-            harga=merged_data.harga,
+            harga=harga,
             dpp=dpp,
             ppn_rate=ppn_rate,
             ppn_adjustment=ppn_adjustment,

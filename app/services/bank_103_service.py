@@ -37,7 +37,7 @@ class Bank103Service:
         return self.repository.get_available_bkpt_payments()
 
     def create(self, data: Bank103Create):
-        bank = self.repository.create(data)
+        bank = self.repository.create(self._prepare_money_payload(data))
 
         # Auto tetap dibuat ketat.
         # Jika tidak yakin, sistem skip dan user bisa alokasi manual.
@@ -47,7 +47,7 @@ class Bank103Service:
         return bank
 
     def update(self, bank_id: int, data: Bank103Update):
-        bank = self.repository.update(bank_id, data)
+        bank = self.repository.update(bank_id, self._prepare_money_payload(data))
 
         if not bank:
             raise HTTPException(
@@ -75,15 +75,27 @@ class Bank103Service:
 
     def _to_decimal(self, value):
         if value is None or value == "":
-            return Decimal("0.00")
+            return Decimal("0")
 
         try:
             return Decimal(str(value)).quantize(
-                Decimal("0.01"),
+                Decimal("1"),
                 rounding=ROUND_HALF_UP,
             )
         except Exception:
-            return Decimal("0.00")
+            return Decimal("0")
+
+    def _prepare_money_payload(self, data):
+        update_data = {}
+
+        for field in ["debet", "kredit", "saldo"]:
+            if getattr(data, field, None) is not None:
+                update_data[field] = self._to_decimal(getattr(data, field))
+
+        if not update_data:
+            return data
+
+        return data.model_copy(update=update_data)
 
     def _normalize_code(self, value):
         return str(value or "").strip().lower()
@@ -268,7 +280,7 @@ class Bank103Service:
         saldo_baru = debet - kredit_baru - pph21 - pph23
 
         if saldo_baru < 0:
-            saldo_baru = Decimal("0.00")
+            saldo_baru = Decimal("0")
 
         bkpt.kredit = kredit_baru
         bkpt.saldo = saldo_baru
@@ -418,8 +430,8 @@ class Bank103Service:
             kredit_baru = kredit_lama + amount
             saldo_baru = debet - kredit_baru - pph21 - pph23
 
-            if saldo_baru < 0:
-                saldo_baru = Decimal("0.00")
+        if saldo_baru < 0:
+            saldo_baru = Decimal("0")
 
             bkpt.kredit = kredit_baru
             bkpt.saldo = saldo_baru

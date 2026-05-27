@@ -35,6 +35,11 @@ function toNumber(value: string) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function roundMoney(value: string | number | null | undefined) {
+  const numberValue = Number(value || 0);
+  return Number.isFinite(numberValue) ? Math.round(numberValue) : 0;
+}
+
 function toInputDate(value?: string | null) {
   if (!value) return "";
   return value.slice(0, 10);
@@ -81,7 +86,7 @@ export default function EditBank103Page() {
   const [isUsed, setIsUsed] = useState(false);
 
   const previewSaldo = useMemo(() => {
-    return toNumber(form.saldo);
+    return roundMoney(form.saldo);
   }, [form.saldo]);
 
   useEffect(() => {
@@ -94,9 +99,9 @@ export default function EditBank103Page() {
           tgl: data.tgl || "",
           kode: data.kode || "",
           keterangan: data.keterangan || "",
-          debet: String(toInputNumber(data.debet)),
-         kredit: String(toInputNumber(data.kredit)),
-         saldo: String(toInputNumber(data.saldo)),
+          debet: String(roundMoney(toInputNumber(data.debet))),
+         kredit: String(roundMoney(toInputNumber(data.kredit))),
+         saldo: String(roundMoney(toInputNumber(data.saldo))),
           });
 
         setIsUsed(Boolean(data.is_used));
@@ -112,9 +117,14 @@ export default function EditBank103Page() {
   }, [id]);
 
   function updateField(name: keyof FormState, value: string) {
+    const moneyFields: Array<keyof FormState> = ["debet", "kredit", "saldo"];
+
     setForm((prev) => ({
       ...prev,
-      [name]: value,
+      [name]:
+        moneyFields.includes(name) && value !== ""
+          ? String(roundMoney(value))
+          : value,
     }));
   }
 
@@ -125,9 +135,9 @@ export default function EditBank103Page() {
       tgl: form.tgl || null,
       kode: form.kode || null,
       keterangan: form.keterangan || null,
-      debet: toNumber(form.debet),
-      kredit: toNumber(form.kredit),
-      saldo: toNumber(form.saldo),
+      debet: roundMoney(form.debet),
+      kredit: roundMoney(form.kredit),
+      saldo: roundMoney(form.saldo),
     };
 
     try {
@@ -245,6 +255,7 @@ export default function EditBank103Page() {
             </label>
             <input
               type="number"
+              step="1"
               value={form.debet}
               onChange={(e) => updateField("debet", e.target.value)}
               className="w-full rounded-xl border px-4 py-2 text-right outline-none focus:border-slate-900"
@@ -257,6 +268,7 @@ export default function EditBank103Page() {
             </label>
             <input
               type="number"
+              step="1"
               value={form.kredit}
               onChange={(e) => updateField("kredit", e.target.value)}
               className="w-full rounded-xl border px-4 py-2 text-right outline-none focus:border-slate-900"
@@ -269,6 +281,7 @@ export default function EditBank103Page() {
             </label>
             <input
               type="number"
+              step="1"
               value={form.saldo}
               onChange={(e) => updateField("saldo", e.target.value)}
               className="w-full rounded-xl border px-4 py-2 text-right outline-none focus:border-slate-900"

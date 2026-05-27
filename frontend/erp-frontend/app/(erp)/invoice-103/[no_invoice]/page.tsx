@@ -61,15 +61,26 @@ function formatNumber(value: number | string | null | undefined) {
   const numberValue = toNumber(value);
 
   return numberValue.toLocaleString("id-ID", {
-    minimumFractionDigits: numberValue % 1 === 0 ? 0 : 2,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
 }
 
+function roundCurrency(value: number | string | null | undefined) {
+  const numberValue = toNumber(value);
+
+  if (!Number.isFinite(numberValue)) return 0;
+
+  // Aturan invoice:
+  // ,50 ke atas dibulatkan naik
+  // ,49 ke bawah dibulatkan turun
+  return Math.round((numberValue + Number.EPSILON) * 1) / 1;
+}
+
 function formatCurrency(value: number | string | null | undefined) {
-  return toNumber(value).toLocaleString("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  return roundCurrency(value).toLocaleString("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
 }
 
@@ -201,18 +212,59 @@ function terbilangRupiah(value: number) {
 }
 
 function getPoDate(item: any, fallbackDate?: string | null) {
-  return normalizeText(item.po_date || item.tgl || fallbackDate);
+  // Prioritas utama: tanggal PO dari BKOrder.
+  // Nama field dibuat fleksibel supaya aman bila backend mengirim alias berbeda.
+  return normalizeText(
+    item.bkorder_po_date ||
+      item.bk_order_po_date ||
+      item.po_date_bkorder ||
+      item.purchase_order_date ||
+      item.tanggal_po ||
+      item.tgl_po ||
+      item.bkorder?.po_date ||
+      item.bk_order?.po_date ||
+      item.po_date ||
+      item.tgl ||
+      fallbackDate
+  );
 }
 
 function getPoNumber(item: any) {
   return normalizeText(
-    item.po_number || item.po_no || item.po || item.no_ord || item.no_order
+    item.bkorder_order_number ||
+      item.bk_order_order_number ||
+      item.order_number_bkorder ||
+      item.bkorder_po_number ||
+      item.bk_order_po_number ||
+      item.po_number_bkorder ||
+      item.order_number ||
+      item.po_number ||
+      item.po_no ||
+      item.po ||
+      item.no_ord ||
+      item.no_order ||
+      item.bkorder?.order_number ||
+      item.bk_order?.order_number ||
+      item.bkorder?.po_number ||
+      item.bk_order?.po_number
   );
 }
 
 function getDoNumber(item: any) {
+  // Prioritas utama: DO Number dari BKOrder.
+  // Fallback lama tetap disiapkan agar halaman tidak rusak jika response belum lengkap.
   return normalizeText(
-    item.do_number || item.do_no || item.no_sj || item.surat_jalan
+    item.bkorder_do_number ||
+      item.bk_order_do_number ||
+      item.do_number_bkorder ||
+      item.no_do_bkorder ||
+      item.do_number ||
+      item.do_no ||
+      item.no_do ||
+      item.no_sj ||
+      item.surat_jalan ||
+      item.bkorder?.do_number ||
+      item.bk_order?.do_number
   );
 }
 
@@ -307,7 +359,11 @@ export default function Invoice103DetailPage() {
         setError("");
 
         const invoiceResult = await getInvoice103ByNoInvoice(noInvoice);
-
+        console.log("INVOICE 103 RESULT:", invoiceResult);
+        console.log("INVOICE 103 ROWS:", invoiceResult?.rows);
+        console.table(invoiceResult?.rows);
+        console.log("ROW 0:", invoiceResult?.rows?.[0]);
+        console.log("ROW 1:", invoiceResult?.rows?.[1]);
         setData(invoiceResult);
         setMetadata(null);
         setMetadataMessage("");
@@ -811,7 +867,7 @@ export default function Invoice103DetailPage() {
                       </td>
 
                       <td className="border-x border-slate-800 px-3 py-3 text-right align-top">
-                        {formatNumber(price)}
+                        {formatCurrency(price)}
                       </td>
 
                       <td className="border-x border-slate-800 px-3 py-3 text-right align-top">
@@ -874,7 +930,7 @@ export default function Invoice103DetailPage() {
             <div className="mt-4 border border-slate-800 p-3">
               <div className="mb-2 font-semibold">Terbilang :</div>
               <div className="text-center font-serif text-[15px] font-semibold">
-                {terbilangRupiah(invoiceInfo.grandTotal)}
+                {terbilangRupiah(roundCurrency(invoiceInfo.grandTotal))}
               </div>
             </div>
 

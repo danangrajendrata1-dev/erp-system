@@ -4,6 +4,11 @@ import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getBKPtReceivable, updateBKPtReceivable } from "@/services/bkpt";
 
+function roundMoney(value: unknown) {
+  const numberValue = Number(value || 0);
+  return Number.isFinite(numberValue) ? Math.round(numberValue) : 0;
+}
+
 export default function EditBKPtPage() {
   const router = useRouter();
   const params = useParams();
@@ -41,11 +46,15 @@ export default function EditBKPtPage() {
           no_invoice: data.no_invoice || "",
           faktur: data.faktur || "",
           pr: data.pr || "",
-          debet: String(data.debet || ""),
-          kredit: String(data.kredit || ""),
-          pph_psl_21: String(data.pph_psl_21 || ""),
-          pph_psl_23: String(data.pph_psl_23 || ""),
-          saldo: String(data.saldo || ""),
+          debet: data.debet ? String(roundMoney(data.debet)) : "",
+          kredit: data.kredit ? String(roundMoney(data.kredit)) : "",
+          pph_psl_21: data.pph_psl_21
+            ? String(roundMoney(data.pph_psl_21))
+            : "",
+          pph_psl_23: data.pph_psl_23
+            ? String(roundMoney(data.pph_psl_23))
+            : "",
+          saldo: data.saldo ? String(roundMoney(data.saldo)) : "",
           keterangan: data.keterangan || "",
         });
       } finally {
@@ -57,17 +66,17 @@ export default function EditBKPtPage() {
   }, [id]);
 
   function calculateSaldo(nextForm: typeof form) {
-    const debet = Number(nextForm.debet || 0);
-    const kredit = Number(nextForm.kredit || 0);
-    const pph21 = Number(nextForm.pph_psl_21 || 0);
-    const pph23 = Number(nextForm.pph_psl_23 || 0);
+    const debet = roundMoney(nextForm.debet);
+    const kredit = roundMoney(nextForm.kredit);
+    const pph21 = roundMoney(nextForm.pph_psl_21);
+    const pph23 = roundMoney(nextForm.pph_psl_23);
 
     return String(debet - kredit - pph21 - pph23);
   }
 
   function getPaymentStatus() {
-    const saldo = Number(form.saldo || 0);
-    const debet = Number(form.debet || 0);
+    const saldo = roundMoney(form.saldo);
+    const debet = roundMoney(form.debet);
 
     if (debet <= 0) return "Belum ada nilai piutang";
     if (saldo <= 0) return "LUNAS";
@@ -98,11 +107,21 @@ export default function EditBKPtPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
     const { name, value } = e.target;
+    const moneyFields = [
+      "debet",
+      "kredit",
+      "pph_psl_21",
+      "pph_psl_23",
+      "saldo",
+    ];
 
     setForm((prev) => {
       const nextForm = {
         ...prev,
-        [name]: value,
+        [name]:
+          moneyFields.includes(name) && value !== ""
+            ? String(roundMoney(value))
+            : value,
       };
 
       if (
@@ -128,11 +147,11 @@ export default function EditBKPtPage() {
       no_invoice: form.no_invoice || null,
       faktur: form.faktur || null,
       pr: form.pr || null,
-      debet: Number(form.debet || 0),
-      kredit: Number(form.kredit || 0),
-      pph_psl_21: Number(form.pph_psl_21 || 0),
-      pph_psl_23: Number(form.pph_psl_23 || 0),
-      saldo: Number(form.saldo || 0),
+      debet: roundMoney(form.debet),
+      kredit: roundMoney(form.kredit),
+      pph_psl_21: roundMoney(form.pph_psl_21),
+      pph_psl_23: roundMoney(form.pph_psl_23),
+      saldo: roundMoney(form.saldo),
       keterangan: form.keterangan || null,
     });
 
@@ -251,6 +270,7 @@ export default function EditBKPtPage() {
 
               <input
                 type="number"
+                step="1"
                 name="debet"
                 value={form.debet}
                 onChange={handleChange}
@@ -265,6 +285,7 @@ export default function EditBKPtPage() {
 
               <input
                 type="number"
+                step="1"
                 name="kredit"
                 value={form.kredit}
                 onChange={handleChange}
@@ -280,6 +301,7 @@ export default function EditBKPtPage() {
 
               <input
                 type="number"
+                step="1"
                 name="pph_psl_21"
                 value={form.pph_psl_21}
                 onChange={handleChange}
@@ -294,6 +316,7 @@ export default function EditBKPtPage() {
 
               <input
                 type="number"
+                step="1"
                 name="pph_psl_23"
                 value={form.pph_psl_23}
                 onChange={handleChange}
@@ -308,6 +331,7 @@ export default function EditBKPtPage() {
 
               <input
                 type="number"
+                step="1"
                 name="saldo"
                 value={form.saldo}
                 onChange={handleChange}

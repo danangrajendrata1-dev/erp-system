@@ -64,5 +64,20 @@ class Sales103Response(Sales103Base):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+    # Data tambahan dari BKOrder untuk kebutuhan cetak Invoice 103.
+    # Ini bukan kolom baru Sales 103 dan tidak mengubah schema database.
+    bkorder_order_date: Optional[date] = None
+    bkorder_order_number: Optional[str] = None
+    bkorder_po_date: Optional[date] = None
+    bkorder_do_number: Optional[str] = None
+    bkorder_delivery_date: Optional[date] = None
+    bkorder_customer_name: Optional[str] = None
+
+    # Alias sederhana supaya frontend lebih mudah fallback.
+    po_date: Optional[date] = None
+    do_number: Optional[str] = None
+    order_number: Optional[str] = None
+    delivery_date: Optional[date] = None
+
     class Config:
         from_attributes = True

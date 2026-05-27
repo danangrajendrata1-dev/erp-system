@@ -40,9 +40,9 @@ function formatDate(value?: string | null) {
 }
 
 function formatCurrency(value: number | string | null | undefined) {
-  return toNumber(value).toLocaleString("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  return Math.round(toNumber(value)).toLocaleString("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
 }
 

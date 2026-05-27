@@ -5,14 +5,57 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSales103ById, updateSales103 } from "@/services/sales103";
 import { Sales103Update } from "@/types/sales103";
+import { getBKOrders } from "@/services/bkorder";
+import { BKOrder } from "@/types/bkorder";
 
-function formatNumber(value: number | null) {
+function formatDecimal(value: number | null) {
   if (value === null || Number.isNaN(value)) return "";
 
   return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(value);
+}
+
+function formatCurrency(value: number | null) {
+  if (value === null || Number.isNaN(value)) return "";
+
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.round(value));
+}
+
+function toNumber(value: unknown) {
+  const numberValue = Number(value || 0);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function roundMoney(value: unknown) {
+  return Math.round(toNumber(value));
+}
+
+function normalizeText(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getDefaultBKOrderQuantity(order: BKOrder) {
+  return toNumber(order.rim) || toNumber(order.quantity);
+}
+
+function getPartialOptions(order: BKOrder | null) {
+  if (!order) return [];
+
+  const quantities = order.partial_billing_quantities || [];
+  const dates = order.delivery_completed_dates || [];
+
+  return quantities
+    .map((quantity, index) => ({
+      index,
+      quantity: toNumber(quantity),
+      deliveryDate: dates[index] || null,
+    }))
+    .filter((item) => item.quantity > 0 || item.deliveryDate);
 }
 
 export default function EditSales103Page() {
@@ -42,16 +85,21 @@ export default function EditSales103Page() {
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [bkorders, setBKOrders] = useState<BKOrder[]>([]);
+  const [selectedBKOrderId, setSelectedBKOrderId] = useState("");
+  const [selectedPartialIndex, setSelectedPartialIndex] = useState("");
 
   const preview = useMemo(() => {
     const jml = Number(form.jml || 0);
-    const harga = Number(form.harga || 0);
+    const harga = roundMoney(form.harga);
     const ppnRate = Number(form.ppn_rate ?? 11);
-    const ppnAdjustment = Number(form.ppn_adjustment || 0);
+    const ppnAdjustment = roundMoney(form.ppn_adjustment);
 
-    const dpp = jml * harga;
-    const ppnKeluar = form.ppn_keluar ?? (dpp * ppnRate) / 100 - ppnAdjustment;
-    const piutangDagang = form.piutang_dagang ?? dpp + ppnKeluar;
+    const dpp = roundMoney(jml * harga);
+    const ppnKeluar =
+      form.ppn_keluar ?? roundMoney((dpp * ppnRate) / 100 - ppnAdjustment);
+    const piutangDagang =
+      form.piutang_dagang ?? roundMoney(dpp + ppnKeluar);
 
     return {
       dpp,
@@ -68,7 +116,7 @@ export default function EditSales103Page() {
   ]);
 
   function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) {
     const { name, value } = e.target;
 
@@ -82,9 +130,21 @@ export default function EditSales103Page() {
     ];
 
     if (numberFields.includes(name)) {
+      const moneyFields = [
+        "harga",
+        "ppn_adjustment",
+        "ppn_keluar",
+        "piutang_dagang",
+      ];
+
       setForm((prev) => ({
         ...prev,
-        [name]: value === "" ? null : Number(value),
+        [name]:
+          value === ""
+            ? null
+            : moneyFields.includes(name)
+              ? roundMoney(value)
+              : Number(value),
       }));
       return;
     }
@@ -93,6 +153,59 @@ export default function EditSales103Page() {
       ...prev,
       [name]: value,
     }));
+  }
+
+  function applyBKOrder(order: BKOrder, partialIndex = "") {
+    const partialOptions = getPartialOptions(order);
+    const selectedPartial =
+      partialIndex === ""
+        ? null
+        : partialOptions.find((item) => item.index === Number(partialIndex));
+
+    setForm((prev) => ({
+      ...prev,
+      tgl: selectedPartial?.deliveryDate || order.delivery_date || prev.tgl || "",
+      no_ord: order.order_number || "",
+      langganan: order.customer_name || "",
+      jenis_cetak: order.print_type || "",
+      jml: selectedPartial?.quantity || getDefaultBKOrderQuantity(order) || null,
+      sat: order.unit || "",
+      harga:
+        order.price === null || order.price === undefined
+          ? null
+          : roundMoney(order.price),
+      production_order_id: order.id,
+    }));
+  }
+
+  function handleBKOrderSelect(value: string) {
+    setSelectedBKOrderId(value);
+    setSelectedPartialIndex("");
+
+    const order = bkorders.find((item) => String(item.id) === value);
+
+    if (order) {
+      applyBKOrder(order);
+    }
+  }
+
+  function handlePartialSelect(value: string) {
+    setSelectedPartialIndex(value);
+
+    const order = bkorders.find((item) => String(item.id) === selectedBKOrderId);
+
+    if (order) {
+      applyBKOrder(order, value);
+    }
+  }
+
+  async function loadBKOrders() {
+    try {
+      const result = await getBKOrders();
+      setBKOrders(result);
+    } catch (error) {
+      console.error("Gagal mengambil BKOrder:", error);
+    }
   }
 
   async function loadData() {
@@ -110,7 +223,7 @@ export default function EditSales103Page() {
         jenis_cetak: data.jenis_cetak || "",
         jml: data.jml === null ? null : Number(data.jml),
         sat: data.sat || "",
-        harga: data.harga === null ? null : Number(data.harga),
+        harga: data.harga === null ? null : roundMoney(data.harga),
         dpp: data.dpp === null ? null : Number(data.dpp),
         ppn_rate: data.ppn_rate === null ? 11 : Number(data.ppn_rate),
         ppn_adjustment:
@@ -124,6 +237,10 @@ export default function EditSales103Page() {
         production_order_id: data.production_order_id,
         keterangan: data.keterangan || "",
       });
+
+      if (data.production_order_id) {
+        setSelectedBKOrderId(String(data.production_order_id));
+      }
     } catch (error) {
       console.error("Gagal mengambil data 103:", error);
       alert("Gagal mengambil data 103");
@@ -138,7 +255,7 @@ export default function EditSales103Page() {
     try {
       setLoading(true);
 
-      await updateSales103(sales103Id, {
+      const savedData = await updateSales103(sales103Id, {
         ...form,
         tgl: form.tgl || null,
         no_ord: form.no_ord || null,
@@ -147,12 +264,23 @@ export default function EditSales103Page() {
         langganan: form.langganan || null,
         jenis_cetak: form.jenis_cetak || null,
         sat: form.sat || null,
+        harga: form.harga === null ? null : roundMoney(form.harga),
         keterangan: form.keterangan || null,
 
         dpp: null,
-        ppn_keluar: form.ppn_keluar ?? null,
-        piutang_dagang: form.piutang_dagang ?? null,
+        ppn_adjustment:
+          form.ppn_adjustment === null ? null : roundMoney(form.ppn_adjustment),
+        ppn_keluar: form.ppn_keluar === null ? null : roundMoney(form.ppn_keluar),
+        piutang_dagang:
+          form.piutang_dagang === null
+            ? null
+            : roundMoney(form.piutang_dagang),
       });
+
+      if (savedData.no_invoice) {
+        router.push(`/invoice-103/${encodeURIComponent(savedData.no_invoice)}`);
+        return;
+      }
 
       router.push("/sales-103");
       router.refresh();
@@ -165,10 +293,39 @@ export default function EditSales103Page() {
   }
 
   useEffect(() => {
+    loadBKOrders();
+  }, []);
+
+  useEffect(() => {
     if (!Number.isNaN(sales103Id)) {
       loadData();
     }
   }, [sales103Id]);
+
+  const selectedBKOrder = useMemo(() => {
+    return (
+      bkorders.find((item) => String(item.id) === selectedBKOrderId) || null
+    );
+  }, [bkorders, selectedBKOrderId]);
+
+  const partialOptions = useMemo(() => {
+    return getPartialOptions(selectedBKOrder);
+  }, [selectedBKOrder]);
+
+  const matchedOrderByNoOrd = useMemo(() => {
+    const noOrd = normalizeText(form.no_ord);
+
+    if (!noOrd) return null;
+
+    return (
+      bkorders.find((item) => normalizeText(item.order_number) === noOrd) || null
+    );
+  }, [bkorders, form.no_ord]);
+
+  const hasBKOrderWarning = Boolean(form.no_ord && !form.production_order_id);
+  const hasManualMismatchWarning = Boolean(
+    form.no_ord && !form.production_order_id && !matchedOrderByNoOrd
+  );
 
   if (loadingData) {
     return (
@@ -191,6 +348,64 @@ export default function EditSales103Page() {
         onSubmit={handleSubmit}
         className="rounded-lg border bg-white p-6 space-y-5"
       >
+        <div className="rounded border bg-slate-50 p-4">
+          <h2 className="mb-3 text-sm font-semibold">Ambil Data dari BKOrder</h2>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium">BKOrder</label>
+              <select
+                value={selectedBKOrderId}
+                onChange={(event) => handleBKOrderSelect(event.target.value)}
+                className="w-full rounded border px-3 py-2 text-sm"
+              >
+                <option value="">Pilih BKOrder</option>
+                {bkorders.map((order) => (
+                  <option key={order.id} value={order.id}>
+                    {order.order_number || `BKOrder #${order.id}`} -{" "}
+                    {order.customer_name || "-"}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                Tagihan Parsial / Pengiriman
+              </label>
+              <select
+                value={selectedPartialIndex}
+                onChange={(event) => handlePartialSelect(event.target.value)}
+                disabled={!selectedBKOrder}
+                className="w-full rounded border px-3 py-2 text-sm disabled:bg-gray-100"
+              >
+                <option value="">Pakai jumlah utama BKOrder</option>
+                {partialOptions.map((item) => (
+                  <option key={item.index} value={item.index}>
+                    #{item.index + 1} - {formatDecimal(item.quantity)}{" "}
+                    {selectedBKOrder?.unit || ""} -{" "}
+                    {item.deliveryDate || "tanpa tanggal"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {hasBKOrderWarning && (
+            <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              Data 103 ini belum terhubung ke BKOrder. Invoice 103 tidak bisa
+              mengambil PO Date dan DO Number otomatis.
+            </div>
+          )}
+
+          {hasManualMismatchWarning && (
+            <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              NO.ORD belum cocok dengan order_number di BKOrder. Pilih BKOrder
+              dari dropdown agar data tidak salah.
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
             <label className="mb-1 block text-sm font-medium">TGL</label>
@@ -289,10 +504,10 @@ export default function EditSales103Page() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">HARGA</label>
-            <input
-              type="number"
-              step="0.01"
-              name="harga"
+              <input
+                type="number"
+                step="1"
+                name="harga"
               value={form.harga ?? ""}
               onChange={handleChange}
               className="w-full rounded border px-3 py-2 text-sm"
@@ -324,7 +539,7 @@ export default function EditSales103Page() {
               </label>
               <input
                 type="number"
-                step="0.01"
+                step="1"
                 name="ppn_adjustment"
                 value={form.ppn_adjustment ?? ""}
                 onChange={handleChange}
@@ -338,7 +553,7 @@ export default function EditSales103Page() {
               </label>
               <input
                 type="number"
-                step="0.01"
+                step="1"
                 name="ppn_keluar"
                 value={form.ppn_keluar ?? ""}
                 onChange={handleChange}
@@ -356,7 +571,7 @@ export default function EditSales103Page() {
             <div>
               <label className="mb-1 block text-sm font-medium">DPP</label>
               <input
-                value={formatNumber(preview.dpp)}
+                value={formatCurrency(preview.dpp)}
                 disabled
                 className="w-full rounded border bg-white px-3 py-2 text-sm text-right"
               />
@@ -367,7 +582,7 @@ export default function EditSales103Page() {
                 PPN KELUAR
               </label>
               <input
-                value={formatNumber(preview.ppn_keluar)}
+                value={formatCurrency(preview.ppn_keluar)}
                 disabled
                 className="w-full rounded border bg-white px-3 py-2 text-sm text-right"
               />
@@ -378,7 +593,7 @@ export default function EditSales103Page() {
                 PIUTANG DAGANG
               </label>
               <input
-                value={formatNumber(preview.piutang_dagang)}
+                value={formatCurrency(preview.piutang_dagang)}
                 disabled
                 className="w-full rounded border bg-white px-3 py-2 text-sm text-right"
               />

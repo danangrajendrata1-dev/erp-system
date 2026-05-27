@@ -28,7 +28,7 @@ function toNumber(value: string | number | null) {
   return Number.isNaN(numberValue) ? 0 : numberValue;
 }
 
-function formatNumber(value: string | number | null) {
+function formatDecimal(value: string | number | null) {
   if (value === null || value === undefined || value === "") return "";
 
   const numberValue = Number(value);
@@ -36,9 +36,22 @@ function formatNumber(value: string | number | null) {
   if (Number.isNaN(numberValue)) return String(value);
 
   return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(numberValue);
+}
+
+function formatCurrency(value: string | number | null) {
+  if (value === null || value === undefined || value === "") return "";
+
+  const numberValue = Number(value);
+
+  if (Number.isNaN(numberValue)) return String(value);
+
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.round(numberValue));
 }
 
 function formatDate(value: string | null) {
@@ -294,43 +307,26 @@ export default function Sales103Page() {
 
                   <tbody>
                     {items.map((item, index) => {
-                      const previousItem = items[index - 1];
-
-                      const isSameInvoiceAsPrevious =
-                        previousItem &&
-                        item.no_invoice &&
-                        previousItem.no_invoice === item.no_invoice;
-
                       return (
                         <tr key={item.id} className="hover:bg-gray-50">
                           <td className="border px-3 py-2 print:px-1 print:py-1">
-                            {isSameInvoiceAsPrevious
-                              ? ""
-                              : formatDate(item.tgl)}
+                            {formatDate(item.tgl)}
                           </td>
 
                           <td className="border px-3 py-2 print:px-1 print:py-1">
-                            {isSameInvoiceAsPrevious
-                              ? ""
-                              : item.no_ord || ""}
+                            {item.no_ord || ""}
                           </td>
 
                           <td className="border px-3 py-2 print:px-1 print:py-1">
-                            {isSameInvoiceAsPrevious
-                              ? ""
-                              : item.no_invoice || ""}
+                            {item.no_invoice || ""}
                           </td>
 
                           <td className="border px-3 py-2 print:px-1 print:py-1">
-                            {isSameInvoiceAsPrevious
-                              ? ""
-                              : item.no_faktur || ""}
+                            {item.no_faktur || ""}
                           </td>
 
                           <td className="border px-3 py-2 print:px-1 print:py-1">
-                            {isSameInvoiceAsPrevious
-                              ? ""
-                              : item.langganan || ""}
+                            {item.langganan || ""}
                           </td>
 
                           <td className="border px-3 py-2 print:px-1 print:py-1">
@@ -338,7 +334,7 @@ export default function Sales103Page() {
                           </td>
 
                           <td className="border px-3 py-2 text-right print:px-1 print:py-1">
-                            {formatNumber(item.jml)}
+                            {formatDecimal(item.jml)}
                           </td>
 
                           <td className="border px-3 py-2 print:px-1 print:py-1">
@@ -346,19 +342,19 @@ export default function Sales103Page() {
                           </td>
 
                           <td className="border px-3 py-2 text-right print:px-1 print:py-1">
-                            {formatNumber(item.harga)}
+                            {formatCurrency(item.harga)}
                           </td>
 
                           <td className="border px-3 py-2 text-right print:px-1 print:py-1">
-                            {formatNumber(item.dpp)}
+                            {formatCurrency(item.dpp)}
                           </td>
 
                           <td className="border px-3 py-2 text-right print:px-1 print:py-1">
-                            {formatNumber(item.ppn_keluar)}
+                            {formatCurrency(item.ppn_keluar)}
                           </td>
 
                           <td className="border px-3 py-2 text-right print:px-1 print:py-1">
-                            {formatNumber(item.piutang_dagang)}
+                            {formatCurrency(item.piutang_dagang)}
                           </td>
 
                           <td className="print:hidden border px-3 py-2 text-center">
@@ -377,14 +373,6 @@ export default function Sales103Page() {
                                 Edit
                               </Link>
 
-                                {item.no_invoice && (
-                                  <Link
-                                    href={`/invoice-103/${encodeURIComponent(item.no_invoice)}`}
-                                    className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
-                                      >
-                                      Cetak Invoice
-                                  </Link>
-                                )}
                               <button
                                 onClick={() => handleDelete(item.id)}
                                 className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
@@ -406,15 +394,15 @@ export default function Sales103Page() {
                       </td>
 
                       <td className="border px-3 py-2 text-right print:px-1 print:py-1">
-                        {formatNumber(totalDpp)}
+                        {formatCurrency(totalDpp)}
                       </td>
 
                       <td className="border px-3 py-2 text-right print:px-1 print:py-1">
-                        {formatNumber(totalPpnKeluar)}
+                        {formatCurrency(totalPpnKeluar)}
                       </td>
 
                       <td className="border px-3 py-2 text-right print:px-1 print:py-1">
-                        {formatNumber(totalPiutangDagang)}
+                        {formatCurrency(totalPiutangDagang)}
                       </td>
 
                       <td className="print:hidden border px-3 py-2" />

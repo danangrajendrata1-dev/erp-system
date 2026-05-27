@@ -26,6 +26,10 @@ function toNumber(value: unknown) {
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+function roundMoney(value: unknown) {
+  return Math.round(toNumber(value));
+}
+
 function normalizeStringDate(value?: string | null) {
   return value && value.trim() !== "" ? value : null;
 }
@@ -127,7 +131,7 @@ function normalizePayload(form: BKOrderPayload): BKOrderPayload {
     delivery_date: normalizeStringDate(form.delivery_date),
     quantity: toNumber(form.quantity),
     rim: toNumber(form.rim),
-    price: toNumber(form.price),
+    price: roundMoney(form.price),
     delivery_completed_dates: normalizeArray(
       form.delivery_completed_dates,
       null
@@ -697,12 +701,12 @@ export default function EditPurchaseOrderPage() {
             <label className="mb-1 block text-sm font-medium">HARGA</label>
             <input
               type="number"
-              step="0.01"
+              step="1"
               value={numberInputValue(form.price)}
               onChange={(e) =>
                 updateField(
                   "price",
-                  e.target.value === "" ? null : Number(e.target.value)
+                  e.target.value === "" ? null : roundMoney(e.target.value)
                 )
               }
               className="w-full rounded-lg border px-3 py-2 text-sm"

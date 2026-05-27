@@ -15,7 +15,26 @@ export interface Invoice103Source {
   ppn_keluar?: number | string | null;
   piutang_dagang?: number | string | null;
 
+  production_order_id?: number | null;
   keterangan?: string | null;
+
+  bkorder_order_date?: string | null;
+  bkorder_order_number?: string | null;
+  bkorder_po_date?: string | null;
+  bkorder_do_number?: string | null;
+  bkorder_delivery_date?: string | null;
+  bkorder_customer_name?: string | null;
+
+  po_date?: string | null;
+  do_number?: string | null;
+  order_number?: string | null;
+  delivery_date?: string | null;
+
+  bkorder?: {
+    po_date?: string | null;
+    do_number?: string | null;
+    order_number?: string | null;
+  } | null;
 }
 
 export interface Invoice103Group {

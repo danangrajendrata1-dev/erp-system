@@ -121,7 +121,7 @@ function formatDate(value?: string | null) {
 }
 
 function formatCurrency(value?: unknown) {
-  const numberValue = toNumber(value);
+  const numberValue = Math.round(toNumber(value));
 
   if (!numberValue) return "";
 
@@ -154,7 +154,7 @@ function getBKPtCustomer(item: BKPtCandidate) {
 }
 
 function getBKPtSaldo(item: BKPtCandidate) {
-  const saldo = toNumber(item.saldo);
+  const saldo = Math.round(toNumber(item.saldo));
 
   if (saldo > 0) return saldo;
 
@@ -163,7 +163,7 @@ function getBKPtSaldo(item: BKPtCandidate) {
   const pph21 = toNumber(item.pph_psl_21);
   const pph23 = toNumber(item.pph_psl_23);
 
-  return Math.max(0, debet - kredit - pph21 - pph23);
+  return Math.max(0, Math.round(debet - kredit - pph21 - pph23));
 }
 
 export default function Bank103Page() {
@@ -333,7 +333,7 @@ export default function Bank103Page() {
     return Object.entries(allocationAmounts)
       .map(([bkptId, amount]) => ({
         bkpt_receivable_id: Number(bkptId),
-        amount: toNumber(amount),
+        amount: Math.round(toNumber(amount)),
       }))
       .filter((item) => item.amount > 0);
   }, [allocationAmounts]);
@@ -343,7 +343,7 @@ export default function Bank103Page() {
     0
   );
 
-  const allocationBankDebet = toNumber(allocationBank?.debet);
+  const allocationBankDebet = Math.round(toNumber(allocationBank?.debet));
   const allocationDifference = allocationBankDebet - totalAllocation;
 
   async function handleDelete(id: number) {
@@ -408,7 +408,7 @@ export default function Bank103Page() {
   function setAllocationAmount(bkptId: number, value: string) {
     setAllocationAmounts((prev) => ({
       ...prev,
-      [bkptId]: value,
+      [bkptId]: value === "" ? "" : String(Math.round(toNumber(value))),
     }));
   }
 
@@ -974,6 +974,8 @@ export default function Bank103Page() {
 
                           <td className="border px-3 py-2 text-right">
                             <input
+                              type="number"
+                              step="1"
                               value={amountValue}
                               onChange={(e) =>
                                 setAllocationAmount(item.id, e.target.value)

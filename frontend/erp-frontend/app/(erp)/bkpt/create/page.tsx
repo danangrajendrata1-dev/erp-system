@@ -4,6 +4,11 @@ import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createBKPtReceivable } from "@/services/bkpt";
 
+function roundMoney(value: unknown) {
+  const numberValue = Number(value || 0);
+  return Number.isFinite(numberValue) ? Math.round(numberValue) : 0;
+}
+
 function CreateBKPtContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,18 +50,18 @@ function CreateBKPtContent() {
         tgl: tgl ? tgl.slice(0, 10) : "",
         no_invoice: noInvoice,
         faktur,
-        debet,
-        saldo: debet,
+        debet: debet ? String(roundMoney(debet)) : "",
+        saldo: debet ? String(roundMoney(debet)) : "",
         keterangan,
       }));
     }
   }, [searchParams]);
 
   function calculateSaldo(nextForm: typeof form) {
-    const debet = Number(nextForm.debet || 0);
-    const kredit = Number(nextForm.kredit || 0);
-    const pph21 = Number(nextForm.pph_psl_21 || 0);
-    const pph23 = Number(nextForm.pph_psl_23 || 0);
+    const debet = roundMoney(nextForm.debet);
+    const kredit = roundMoney(nextForm.kredit);
+    const pph21 = roundMoney(nextForm.pph_psl_21);
+    const pph23 = roundMoney(nextForm.pph_psl_23);
 
     return String(debet - kredit - pph21 - pph23);
   }
@@ -65,11 +70,21 @@ function CreateBKPtContent() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
     const { name, value } = e.target;
+    const moneyFields = [
+      "debet",
+      "kredit",
+      "pph_psl_21",
+      "pph_psl_23",
+      "saldo",
+    ];
 
     setForm((prev) => {
       const nextForm = {
         ...prev,
-        [name]: value,
+        [name]:
+          moneyFields.includes(name) && value !== ""
+            ? String(roundMoney(value))
+            : value,
       };
 
       if (
@@ -95,11 +110,11 @@ function CreateBKPtContent() {
       no_invoice: form.no_invoice || null,
       faktur: form.faktur || null,
       pr: form.pr || null,
-      debet: Number(form.debet || 0),
-      kredit: Number(form.kredit || 0),
-      pph_psl_21: Number(form.pph_psl_21 || 0),
-      pph_psl_23: Number(form.pph_psl_23 || 0),
-      saldo: Number(form.saldo || 0),
+      debet: roundMoney(form.debet),
+      kredit: roundMoney(form.kredit),
+      pph_psl_21: roundMoney(form.pph_psl_21),
+      pph_psl_23: roundMoney(form.pph_psl_23),
+      saldo: roundMoney(form.saldo),
       keterangan: form.keterangan || null,
     });
 
@@ -201,6 +216,7 @@ function CreateBKPtContent() {
 
             <input
               type="number"
+              step="1"
               name="debet"
               value={form.debet}
               onChange={handleChange}
@@ -213,6 +229,7 @@ function CreateBKPtContent() {
 
             <input
               type="number"
+              step="1"
               name="kredit"
               value={form.kredit}
               onChange={handleChange}
@@ -227,6 +244,7 @@ function CreateBKPtContent() {
 
             <input
               type="number"
+              step="1"
               name="pph_psl_21"
               value={form.pph_psl_21}
               onChange={handleChange}
@@ -241,6 +259,7 @@ function CreateBKPtContent() {
 
             <input
               type="number"
+              step="1"
               name="pph_psl_23"
               value={form.pph_psl_23}
               onChange={handleChange}
@@ -253,6 +272,7 @@ function CreateBKPtContent() {
 
             <input
               type="number"
+              step="1"
               name="saldo"
               value={form.saldo}
               onChange={handleChange}
