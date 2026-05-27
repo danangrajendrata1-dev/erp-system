@@ -8,7 +8,7 @@ export default function CreateMaterialReceiptPage() {
   const params = useParams();
   const router = useRouter();
 
-  const productionOrderId = Number(params.id);
+  const bkorderId = Number(params.id);
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -37,7 +37,7 @@ export default function CreateMaterialReceiptPage() {
 
     try {
       await createMaterialReceipt({
-        production_order_id: productionOrderId,
+        production_order_id: bkorderId,
         material_id: null,
         supplier_id: null,
         receipt_date: form.receipt_date || null,
@@ -49,7 +49,7 @@ export default function CreateMaterialReceiptPage() {
       });
 
       alert("Data Bahan Datang berhasil disimpan");
-      router.push(`/purchase-orders/${productionOrderId}`);
+      router.push(`/bkorder/${bkorderId}`);
     } catch (error) {
       alert(
         error instanceof Error
@@ -135,7 +135,7 @@ export default function CreateMaterialReceiptPage() {
 
           <button
             type="button"
-            onClick={() => router.push(`/purchase-orders/${productionOrderId}`)}
+            onClick={() => router.push(`/bkorder/${bkorderId}`)}
             className="rounded-lg border px-5 py-2 hover:bg-gray-50"
           >
             Batal

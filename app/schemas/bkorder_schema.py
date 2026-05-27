@@ -5,7 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ProductionOrderBase(BaseModel):
+class BKOrderBase(BaseModel):
     order_date: Optional[date] = None
     order_number: Optional[str] = None
     po_date: Optional[date] = None
@@ -32,15 +32,15 @@ class ProductionOrderBase(BaseModel):
     notes: Optional[str] = None
 
 
-class ProductionOrderCreate(ProductionOrderBase):
+class BKOrderCreate(BKOrderBase):
     pass
 
 
-class ProductionOrderUpdate(ProductionOrderBase):
+class BKOrderUpdate(BKOrderBase):
     pass
 
 
-class ProductionOrderResponse(ProductionOrderBase):
+class BKOrderResponse(BKOrderBase):
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

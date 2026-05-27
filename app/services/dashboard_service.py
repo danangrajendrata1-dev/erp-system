@@ -17,8 +17,8 @@ from app.models.sales_order_model import (
     SalesOrder
 )
 
-from app.models.production_model import (
-    ProductionOrder
+from app.models.bkorder_model import (
+    BKOrder
 )
 
 from app.models.cash_model import (
@@ -55,7 +55,7 @@ def get_dashboard_summary(
     ).count()
 
     total_production = db.query(
-        ProductionOrder
+        BKOrder
     ).count()
 
     cash_in = db.query(

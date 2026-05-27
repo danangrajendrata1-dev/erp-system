@@ -4,8 +4,8 @@ from typing import List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.repositories.production_repository import ProductionOrderRepository
-from app.schemas.production_schema import ProductionOrderCreate, ProductionOrderUpdate
+from app.repositories.bkorder_repository import BKOrderRepository
+from app.schemas.bkorder_schema import BKOrderCreate, BKOrderUpdate
 
 EXCEL_REPEAT_COLUMNS = 14
 
@@ -35,11 +35,11 @@ def _auto_total_keping(values: List[float]) -> Decimal:
     return Decimal(str(sum(values)))
 
 
-class ProductionOrderService:
+class BKOrderService:
     def __init__(self, db: Session):
-        self.repository = ProductionOrderRepository(db)
+        self.repository = BKOrderRepository(db)
 
-    def _prepare_create(self, data: ProductionOrderCreate) -> ProductionOrderCreate:
+    def _prepare_create(self, data: BKOrderCreate) -> BKOrderCreate:
         payload = data.model_dump()
         payload["delivery_completed_dates"] = _normalize_dates(payload.get("delivery_completed_dates"))
         payload["partial_billing_quantities"] = _normalize_numbers(payload.get("partial_billing_quantities"))
@@ -47,9 +47,9 @@ class ProductionOrderService:
         if payload.get("total_keping") in (None, 0, Decimal("0"), ""):
             payload["total_keping"] = _auto_total_keping(payload["partial_billing_quantities"])
 
-        return ProductionOrderCreate(**payload)
+        return BKOrderCreate(**payload)
 
-    def _prepare_update(self, data: ProductionOrderUpdate) -> ProductionOrderUpdate:
+    def _prepare_update(self, data: BKOrderUpdate) -> BKOrderUpdate:
         payload = data.model_dump(exclude_unset=True)
 
         if "delivery_completed_dates" in payload:
@@ -60,7 +60,7 @@ class ProductionOrderService:
             if payload.get("total_keping") in (None, 0, Decimal("0"), ""):
                 payload["total_keping"] = _auto_total_keping(payload["partial_billing_quantities"])
 
-        return ProductionOrderUpdate(**payload)
+        return BKOrderUpdate(**payload)
 
     def get_all(
         self,
@@ -71,29 +71,29 @@ class ProductionOrderService:
     ):
         return self.repository.get_all(search=search, status=status, month=month, year=year)
 
-    def get_by_id(self, production_order_id: int):
-        obj = self.repository.get_by_id(production_order_id)
+    def get_by_id(self, bkorder_id: int):
+        obj = self.repository.get_by_id(bkorder_id)
         if not obj:
             raise HTTPException(status_code=404, detail="BKOrder tidak ditemukan")
         return obj
 
-    def create(self, data: ProductionOrderCreate):
+    def create(self, data: BKOrderCreate):
         return self.repository.create(self._prepare_create(data))
 
-    def update(self, production_order_id: int, data: ProductionOrderUpdate):
-        obj = self.repository.update(production_order_id, self._prepare_update(data))
+    def update(self, bkorder_id: int, data: BKOrderUpdate):
+        obj = self.repository.update(bkorder_id, self._prepare_update(data))
         if not obj:
             raise HTTPException(status_code=404, detail="BKOrder tidak ditemukan")
         return obj
 
-    def delete(self, production_order_id: int):
-        obj = self.repository.delete(production_order_id)
+    def delete(self, bkorder_id: int):
+        obj = self.repository.delete(bkorder_id)
         if not obj:
             raise HTTPException(status_code=404, detail="BKOrder tidak ditemukan")
         return {"message": "BKOrder berhasil dihapus"}
 
-    def timeline(self, production_order_id: int):
-        obj = self.get_by_id(production_order_id)
+    def timeline(self, bkorder_id: int):
+        obj = self.get_by_id(bkorder_id)
         kirim_dates = obj.delivery_completed_dates or []
         kirim_dates = [value for value in kirim_dates if value]
 

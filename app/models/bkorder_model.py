@@ -4,7 +4,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from app.database.connection import Base
 
 
-class ProductionOrder(Base):
+class BKOrder(Base):
+    # Nama tabel tetap production_orders agar tidak mengubah schema database lama.
     __tablename__ = "production_orders"
 
     id = Column(Integer, primary_key=True, index=True)

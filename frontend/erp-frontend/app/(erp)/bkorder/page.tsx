@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  deleteProductionOrder,
-  getProductionOrders,
+  deleteBKOrder,
+  getBKOrders,
 } from "@/services/bkorder";
-import { ProductionOrder } from "@/types/bkorder";
+import { BKOrder } from "@/types/bkorder";
 
 const REPEAT_COLUMNS = Array.from({ length: 14 }, (_, index) => index);
 
@@ -59,7 +59,7 @@ function normalizeArray<T>(values: T[] | undefined | null, defaultValue: T) {
   return result;
 }
 
-function getTotalKeping(item: ProductionOrder) {
+function getTotalKeping(item: BKOrder) {
   const partials = normalizeArray(item.partial_billing_quantities, null);
 
   const partialTotal = partials.reduce<number>((sum, value) => {
@@ -69,11 +69,11 @@ function getTotalKeping(item: ProductionOrder) {
   return toNumber(item.total_keping) || partialTotal;
 }
 
-function getKekuranganKeping(item: ProductionOrder) {
+function getKekuranganKeping(item: BKOrder) {
   return Math.max(toNumber(item.quantity) - getTotalKeping(item), 0);
 }
 
-function getKepingPerRimFromItem(item: ProductionOrder) {
+function getKepingPerRimFromItem(item: BKOrder) {
   const quantity = toNumber(item.quantity);
   const rim = toNumber(item.rim);
 
@@ -105,7 +105,7 @@ function convertKepingToDisplay(params: {
   });
 }
 
-function getKekuranganDisplay(item: ProductionOrder) {
+function getKekuranganDisplay(item: BKOrder) {
   const kekuranganKeping = getKekuranganKeping(item);
   const kepingPerRim = getKepingPerRimFromItem(item);
 
@@ -122,7 +122,7 @@ function getKekuranganDisplay(item: ProductionOrder) {
   };
 }
 
-function getTotalTerkirimDisplay(item: ProductionOrder) {
+function getTotalTerkirimDisplay(item: BKOrder) {
   const totalKeping = getTotalKeping(item);
   const kepingPerRim = getKepingPerRimFromItem(item);
 
@@ -147,7 +147,7 @@ function formatDisplayWithUnit(value: number, unit: string) {
   })} ${unit}`;
 }
 
-function getGroupKey(item: ProductionOrder) {
+function getGroupKey(item: BKOrder) {
   return [
     item.order_date || "",
     item.order_number || "",
@@ -158,7 +158,7 @@ function getGroupKey(item: ProductionOrder) {
   ].join("|");
 }
 
-function sortBKOrder(a: ProductionOrder, b: ProductionOrder) {
+function sortBKOrder(a: BKOrder, b: BKOrder) {
   const dateA = a.order_date || "";
   const dateB = b.order_date || "";
 
@@ -197,7 +197,7 @@ function getStatusClass(status?: string | null) {
 export default function PurchaseOrdersPage() {
   const router = useRouter();
 
-  const [data, setData] = useState<ProductionOrder[]>([]);
+  const [data, setData] = useState<BKOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -205,7 +205,7 @@ export default function PurchaseOrdersPage() {
     setLoading(true);
 
     try {
-      const result = await getProductionOrders();
+      const result = await getBKOrders();
       setData(result);
     } finally {
       setLoading(false);
@@ -243,11 +243,11 @@ export default function PurchaseOrdersPage() {
   const groupedData = useMemo(() => {
     const groups: {
       key: string;
-      header: ProductionOrder;
-      rows: ProductionOrder[];
+      header: BKOrder;
+      rows: BKOrder[];
     }[] = [];
 
-    const map = new Map<string, ProductionOrder[]>();
+    const map = new Map<string, BKOrder[]>();
 
     filteredData.forEach((item) => {
       const key = getGroupKey(item);
@@ -289,7 +289,7 @@ export default function PurchaseOrdersPage() {
 
     if (!confirmed) return;
 
-    await deleteProductionOrder(id);
+    await deleteBKOrder(id);
     await loadData();
   }
 
@@ -313,7 +313,7 @@ export default function PurchaseOrdersPage() {
               </div>
 
               <button
-                onClick={() => router.push("/purchase-orders/create")}
+                onClick={() => router.push("/bkorder/create")}
                 className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100 print:hidden"
               >
                 + Tambah BKOrder
@@ -658,7 +658,7 @@ export default function PurchaseOrdersPage() {
                                   <button
                                     onClick={() =>
                                       router.push(
-                                        `/purchase-orders/create?copyFrom=${group.header.id}`
+                                        `/bkorder/create?copyFrom=${group.header.id}`
                                       )
                                     }
                                     className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-blue-700 print:hidden"
@@ -754,7 +754,7 @@ export default function PurchaseOrdersPage() {
                             <div className="flex justify-center gap-2">
                               <button
                                 onClick={() =>
-                                  router.push(`/purchase-orders/${item.id}`)
+                                  router.push(`/bkorder/${item.id}`)
                                 }
                                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                               >

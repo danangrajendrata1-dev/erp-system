@@ -32,9 +32,10 @@ export default function Sidebar() {
     router.push("/");
   };
 
+  // Daftar menu utama ERP. Href ini menentukan route yang dibuka saat menu diklik.
   const menus = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "BKOrder", href: "/purchase-orders", icon: ShoppingCart },
+  { title: "BKOrder", href: "/bkorder", icon: ShoppingCart },
   { title: "103", href: "/sales-103", icon: FileText },
   { title: "BKPt", href: "/bkpt", icon: FileText },
   { title: "Bank 103", href: "/bank-103", icon: Wallet },

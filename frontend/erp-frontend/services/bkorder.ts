@@ -1,36 +1,39 @@
 import api from "./api";
 import {
-  ProductionOrder,
-  ProductionOrderPayload,
+  BKOrder,
+  BKOrderPayload,
 } from "@/types/bkorder";
 
-export async function getProductionOrders(): Promise<ProductionOrder[]> {
-  const response = await api.get("/production-orders/");
+// Service BKOrder untuk komunikasi frontend ke backend.
+// Frontend memakai endpoint baru /bkorders.
+// Backend masih menyediakan /production-orders sebagai kompatibilitas endpoint lama.
+export async function getBKOrders(): Promise<BKOrder[]> {
+  const response = await api.get("/bkorders/");
   return response.data;
 }
 
-export async function getProductionOrder(
+export async function getBKOrder(
   id: string | number
-): Promise<ProductionOrder> {
-  const response = await api.get(`/production-orders/${id}`);
+): Promise<BKOrder> {
+  const response = await api.get(`/bkorders/${id}`);
   return response.data;
 }
 
-export async function createProductionOrder(
-  payload: ProductionOrderPayload
-): Promise<ProductionOrder> {
-  const response = await api.post("/production-orders/", payload);
+export async function createBKOrder(
+  payload: BKOrderPayload
+): Promise<BKOrder> {
+  const response = await api.post("/bkorders/", payload);
   return response.data;
 }
 
-export async function updateProductionOrder(
+export async function updateBKOrder(
   id: string | number,
-  payload: ProductionOrderPayload
-): Promise<ProductionOrder> {
-  const response = await api.put(`/production-orders/${id}`, payload);
+  payload: BKOrderPayload
+): Promise<BKOrder> {
+  const response = await api.put(`/bkorders/${id}`, payload);
   return response.data;
 }
 
-export async function deleteProductionOrder(id: string | number): Promise<void> {
-  await api.delete(`/production-orders/${id}`);
+export async function deleteBKOrder(id: string | number): Promise<void> {
+  await api.delete(`/bkorders/${id}`);
 }

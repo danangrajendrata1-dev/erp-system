@@ -2,7 +2,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from app.models.production_model import ProductionOrder
+from app.models.bkorder_model import BKOrder
 from app.repositories.invoice_repository import InvoiceRepository
 from app.schemas.invoice_schema import InvoiceCreate, InvoiceUpdate
 
@@ -29,8 +29,8 @@ class InvoiceService:
     @staticmethod
     def create_invoice(db: Session, data: InvoiceCreate):
         production_order = (
-            db.query(ProductionOrder)
-            .filter(ProductionOrder.id == data.production_order_id)
+            db.query(BKOrder)
+            .filter(BKOrder.id == data.production_order_id)
             .first()
         )
 

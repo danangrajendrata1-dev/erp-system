@@ -4,8 +4,8 @@ import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import MaterialSearchInput from "@/components/MaterialSearchInput";
-import { createProductionOrder, getProductionOrder } from "@/services/bkorder";
-import { ProductionOrderPayload } from "@/types/bkorder";
+import { createBKOrder, getBKOrder } from "@/services/bkorder";
+import { BKOrderPayload } from "@/types/bkorder";
 import { MaterialType } from "@/types/material";
 import {
   parseUkuranMm,
@@ -16,7 +16,7 @@ import {
 
 const REPEAT_COLUMNS = Array.from({ length: 14 }, (_, index) => index);
 
-const emptyForm: ProductionOrderPayload = {
+const emptyForm: BKOrderPayload = {
   order_date: "",
   order_number: "",
   po_date: "",
@@ -73,7 +73,7 @@ function isRimUnit(unit?: string | null) {
 }
 
 function getKepingPerRimFromForm(
-  form: ProductionOrderPayload | null,
+  form: BKOrderPayload | null,
   cuttingInfo: {
     kepingPerRim: number;
   }
@@ -127,7 +127,7 @@ function formatDisplayValue(value: number, unit?: string | null) {
   })} ${isRimUnit(unit) ? "Rim" : "Keping"}`;
 }
 
-function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload {
+function normalizePayload(form: BKOrderPayload): BKOrderPayload {
   const partials = normalizeArray<number | null>(
     form.partial_billing_quantities ?? null,
     null
@@ -159,7 +159,7 @@ function CreatePurchaseOrderContent() {
   const searchParams = useSearchParams();
   const copyFrom = searchParams.get("copyFrom");
 
-  const [form, setForm] = useState<ProductionOrderPayload>(emptyForm);
+  const [form, setForm] = useState<BKOrderPayload>(emptyForm);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialType | null>(
     null
   );
@@ -173,7 +173,7 @@ function CreatePurchaseOrderContent() {
       setLoadingCopy(true);
 
       try {
-        const data = await getProductionOrder(copyFrom);
+        const data = await getBKOrder(copyFrom);
 
         setForm({
           ...emptyForm,
@@ -266,9 +266,9 @@ function CreatePurchaseOrderContent() {
     };
   }, [form.unit, kekuranganKeping, kepingPerRim]);
 
-  function updateField<K extends keyof ProductionOrderPayload>(
+  function updateField<K extends keyof BKOrderPayload>(
     key: K,
-    value: ProductionOrderPayload[K]
+    value: BKOrderPayload[K]
   ) {
     setForm((prev) => ({
       ...prev,
@@ -471,8 +471,8 @@ function CreatePurchaseOrderContent() {
     setSaving(true);
 
     try {
-      await createProductionOrder(normalizePayload(form));
-      router.push("/purchase-orders");
+      await createBKOrder(normalizePayload(form));
+      router.push("/bkorder");
     } finally {
       setSaving(false);
     }
@@ -739,7 +739,7 @@ function CreatePurchaseOrderContent() {
               onChange={(e) =>
                 updateField(
                   "status",
-                  e.target.value as ProductionOrderPayload["status"]
+                  e.target.value as BKOrderPayload["status"]
                 )
               }
               className="w-full rounded-lg border px-3 py-2 text-sm"
@@ -807,7 +807,7 @@ function CreatePurchaseOrderContent() {
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => router.push("/purchase-orders")}
+            onClick={() => router.push("/bkorder")}
             className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
           >
             Batal

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from app.models.production_model import ProductionOrder
+from app.models.bkorder_model import BKOrder
 from app.repositories.shipment_repository import ShipmentRepository
 from app.schemas.shipment_schema import ShipmentCreate, ShipmentUpdate
 
@@ -11,8 +11,8 @@ class ShipmentService:
     @staticmethod
     def create_shipment(db: Session, data: ShipmentCreate):
         production_order = (
-            db.query(ProductionOrder)
-            .filter(ProductionOrder.id == data.production_order_id)
+            db.query(BKOrder)
+            .filter(BKOrder.id == data.production_order_id)
             .first()
         )
 

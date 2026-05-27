@@ -4,8 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import MaterialSearchInput from "@/components/MaterialSearchInput";
-import { getProductionOrder, updateProductionOrder } from "@/services/bkorder";
-import { ProductionOrderPayload } from "@/types/bkorder";
+import { getBKOrder, updateBKOrder } from "@/services/bkorder";
+import { BKOrderPayload } from "@/types/bkorder";
 import { MaterialType } from "@/types/material";
 import {
   parseUkuranMm,
@@ -51,7 +51,7 @@ function isRimUnit(unit?: string | null) {
 }
 
 function getKepingPerRimFromForm(
-  form: ProductionOrderPayload | null,
+  form: BKOrderPayload | null,
   cuttingInfo: {
     kepingPerRim: number;
   }
@@ -110,7 +110,7 @@ function formatDisplayValue(value: number, unit?: string | null) {
   })} ${isRimUnit(unit) ? "Rim" : "Keping"}`;
 }
 
-function normalizePayload(form: ProductionOrderPayload): ProductionOrderPayload {
+function normalizePayload(form: BKOrderPayload): BKOrderPayload {
   const partials = normalizeArray<number | null | undefined>(
     form.partial_billing_quantities,
     null
@@ -141,7 +141,7 @@ export default function EditPurchaseOrderPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [form, setForm] = useState<ProductionOrderPayload | null>(null);
+  const [form, setForm] = useState<BKOrderPayload | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialType | null>(
     null
   );
@@ -153,7 +153,7 @@ export default function EditPurchaseOrderPage() {
       setLoading(true);
 
       try {
-        const data = await getProductionOrder(params.id);
+        const data = await getBKOrder(params.id);
 
         setForm({
           order_date: toDateInput(data.order_date),
@@ -253,9 +253,9 @@ export default function EditPurchaseOrderPage() {
     };
   }, [form?.unit, kekuranganKeping, kepingPerRim]);
 
-  function updateField<K extends keyof ProductionOrderPayload>(
+  function updateField<K extends keyof BKOrderPayload>(
     key: K,
-    value: ProductionOrderPayload[K]
+    value: BKOrderPayload[K]
   ) {
     setForm((prev) => {
       if (!prev) return prev;
@@ -489,8 +489,8 @@ export default function EditPurchaseOrderPage() {
     setSaving(true);
 
     try {
-      await updateProductionOrder(params.id, normalizePayload(form));
-      router.push("/purchase-orders");
+      await updateBKOrder(params.id, normalizePayload(form));
+      router.push("/bkorder");
     } finally {
       setSaving(false);
     }
@@ -750,7 +750,7 @@ export default function EditPurchaseOrderPage() {
               onChange={(e) =>
                 updateField(
                   "status",
-                  e.target.value as ProductionOrderPayload["status"]
+                  e.target.value as BKOrderPayload["status"]
                 )
               }
               className="w-full rounded-lg border px-3 py-2 text-sm"
@@ -819,7 +819,7 @@ export default function EditPurchaseOrderPage() {
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => router.push("/purchase-orders")}
+            onClick={() => router.push("/bkorder")}
             className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
           >
             Batal

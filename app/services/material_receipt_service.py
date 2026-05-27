@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from app.models.production_model import ProductionOrder
+from app.models.bkorder_model import BKOrder
 from app.repositories.material_receipt_repository import MaterialReceiptRepository
 from app.schemas.material_receipt_schema import (
     MaterialReceiptCreate,
@@ -14,8 +14,8 @@ class MaterialReceiptService:
     @staticmethod
     def create_receipt(db: Session, data: MaterialReceiptCreate):
         production_order = (
-            db.query(ProductionOrder)
-            .filter(ProductionOrder.id == data.production_order_id)
+            db.query(BKOrder)
+            .filter(BKOrder.id == data.production_order_id)
             .first()
         )
 

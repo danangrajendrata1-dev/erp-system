@@ -2,7 +2,7 @@ export type NullableDate = string | null;
 
 export type NullableNumber = number | null;
 
-export interface ProductionOrder {
+export interface BKOrder {
   id: number;
 
   order_date?: NullableDate;
@@ -33,7 +33,7 @@ export interface ProductionOrder {
   updated_at?: string | null;
 }
 
-export interface ProductionOrderPayload {
+export interface BKOrderPayload {
   order_date?: NullableDate;
   order_number?: string | null;
   po_date?: NullableDate;

@@ -8,7 +8,7 @@ export default function CreatePotongCetakPage() {
   const params = useParams();
   const router = useRouter();
 
-  const productionOrderId = Number(params.id);
+  const bkorderId = Number(params.id);
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -42,7 +42,7 @@ export default function CreatePotongCetakPage() {
 
     try {
       await createProductionProcess({
-        production_order_id: productionOrderId,
+        production_order_id: bkorderId,
         process_type: form.process_type as "POTONG" | "CETAK",
         start_date: form.start_date || null,
         finish_date: form.finish_date || null,
@@ -55,7 +55,7 @@ export default function CreatePotongCetakPage() {
       });
 
       alert("Data Potong & Cetak berhasil disimpan");
-      router.push(`/purchase-orders/${productionOrderId}`);
+      router.push(`/bkorder/${bkorderId}`);
     } catch (error) {
       alert(
         error instanceof Error
@@ -169,7 +169,7 @@ export default function CreatePotongCetakPage() {
 
           <button
             type="button"
-            onClick={() => router.push(`/purchase-orders/${productionOrderId}`)}
+            onClick={() => router.push(`/bkorder/${bkorderId}`)}
             className="rounded-lg border px-5 py-2 hover:bg-gray-50"
           >
             Batal
