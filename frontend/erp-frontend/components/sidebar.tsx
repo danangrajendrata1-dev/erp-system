@@ -50,9 +50,6 @@ const menuGroups: MenuGroup[] = [
       { title: "BKOrder", href: "/bkorder", icon: ShoppingCart },
       { title: "Sales 103", href: "/sales-103", icon: FileText },
       { title: "Invoice 103", href: "/invoice-103", icon: ReceiptText },
-      { title: "Sales Order", href: "/sales-orders", icon: ClipboardList },
-      { title: "Invoice Umum", href: "/invoices", icon: ScrollText },
-      { title: "Delivery", href: "/delivery", icon: Truck },
     ],
   },
   {
@@ -60,7 +57,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "BKPt", href: "/bkpt", icon: FileArchive },
       { title: "Bank 103", href: "/bank-103", icon: Wallet },
-      { title: "Finance", href: "/finance", icon: BarChart3 },
+      
     ],
   },
   {
@@ -82,7 +79,6 @@ const menuGroups: MenuGroup[] = [
       { title: "Customers", href: "/customers", icon: Users },
       { title: "Suppliers", href: "/suppliers", icon: Building2 },
       { title: "Materials", href: "/materials", icon: Package },
-      { title: "Products", href: "/products", icon: Boxes },
       { title: "Employees", href: "/employees", icon: UserRound },
     ],
   },
@@ -123,24 +119,26 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="sidebar fixed left-0 top-0 z-30 flex h-screen w-[260px] flex-col border-r border-slate-200 bg-slate-50 text-slate-700 shadow-sm">
-      <div className="border-b border-slate-200 px-5 py-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-          ERP Client
-        </p>
-        <h1 className="mt-1 text-xl font-bold text-slate-950">
-          ERP System
-        </h1>
+    <aside className="sidebar fixed left-0 top-0 z-30 flex h-screen w-[260px] flex-col border-r border-slate-200 bg-slate-950 text-slate-100 shadow-xl">
+      <div className="border-b border-white/10 bg-slate-900 px-5 py-5">
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
+            ERP Client
+          </p>
+          <h1 className="mt-1 text-xl font-bold text-white">
+            ERP System
+          </h1>
+        </div>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 space-y-5 overflow-y-auto bg-slate-950 px-3 py-4">
         {menuGroups.map((group) => (
           <div key={group.title}>
             <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
               {group.title}
             </p>
 
-            <div className="space-y-1">
+            <div className="space-y-1 rounded-xl border border-white/5 bg-white/[0.03] p-1">
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = isMenuActive(pathname, item.href);
@@ -149,15 +147,15 @@ export default function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
                       isActive
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-white hover:text-slate-950 hover:shadow-sm"
+                        ? "bg-sky-100 text-slate-950 shadow-sm"
+                        : "text-slate-300 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     <Icon
                       className={`h-4 w-4 shrink-0 ${
-                        isActive ? "text-white" : "text-slate-400"
+                        isActive ? "text-sky-700" : "text-slate-400"
                       }`}
                     />
                     <span className="truncate">{item.title}</span>
@@ -169,11 +167,11 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-slate-200 p-3">
+      <div className="border-t border-white/10 bg-slate-900 p-3">
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+          className="flex w-full items-center gap-3 rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2.5 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/20 hover:text-white"
         >
           <LogOut className="h-4 w-4" />
           <span>Logout</span>
