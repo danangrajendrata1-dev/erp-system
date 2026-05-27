@@ -90,14 +90,14 @@ export default function EditBank103Page() {
         setLoading(true);
         const data = await getBank103ById(id);
 
-        setForm({
-          tgl: toInputDate(data.tgl),
+          setForm({
+          tgl: data.tgl || "",
           kode: data.kode || "",
           keterangan: data.keterangan || "",
-          debet: toInputNumber(data.debet),
-          kredit: toInputNumber(data.kredit),
-          saldo: toInputNumber(data.saldo),
-        });
+          debet: String(toInputNumber(data.debet)),
+         kredit: String(toInputNumber(data.kredit)),
+         saldo: String(toInputNumber(data.saldo)),
+          });
 
         setIsUsed(Boolean(data.is_used));
       } catch (error) {
