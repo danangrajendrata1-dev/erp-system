@@ -40,9 +40,34 @@ function toInputDate(value?: string | null) {
   return value.slice(0, 10);
 }
 
-function toInputNumber(value?: number | null) {
-  if (!value) return "";
-  return String(value);
+function toInputNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return 0;
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const raw = String(value).trim().replace(/\s/g, "");
+
+  if (!raw) return 0;
+
+  const hasComma = raw.includes(",");
+  const hasDot = raw.includes(".");
+
+  if (hasComma && hasDot) {
+    const normalized = raw.replace(/\./g, "").replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  if (hasComma && !hasDot) {
+    const normalized = raw.replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export default function EditBank103Page() {
