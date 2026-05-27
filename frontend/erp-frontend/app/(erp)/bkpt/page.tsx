@@ -602,7 +602,24 @@ function BKPtPageContent() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-[1500px] border-collapse text-xs">
+                  <table className="w-full min-w-[1700px] table-fixed border-collapse text-xs">
+                    {/* Lebar kolom BKPt dibuat proporsional agar tabel penuh sampai kanan dan tetap rapi. */}
+                    <colgroup>
+                      <col className="w-[5%]" />
+                      <col className="w-[8%]" />
+                      <col className="w-[8%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[8%]" />
+                      <col className="w-[8%]" />
+                      <col className="w-[6%]" />
+                      <col className="w-[6%]" />
+                      <col className="w-[8%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[6%]" />
+                      <col className="w-[8%]" />
+                    </colgroup>
+
                     <thead>
                       <tr className="bg-slate-800 text-white">
                         <th className="border border-slate-700 px-3 py-3 text-left">

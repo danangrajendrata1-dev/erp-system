@@ -2,9 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getInvoice103ByNoInvoice } from "@/services/invoice103";
+import {
+  getInvoice103ByNoInvoice,
+  getInvoice103Metadata,
+  saveInvoice103Metadata,
+} from "@/services/invoice103";
 import { getBKPtReceivables } from "@/services/bkpt";
-import { Invoice103Group } from "@/types/invoice103";
+import { Invoice103Group, Invoice103Metadata } from "@/types/invoice103";
 
 function toNumber(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === "") return 0;
@@ -283,9 +287,15 @@ export default function Invoice103DetailPage() {
   const noInvoice = decodeURIComponent(String(params.no_invoice ?? ""));
 
   const [data, setData] = useState<Invoice103Group | null>(null);
+  const [metadata, setMetadata] = useState<Invoice103Metadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [alreadyInBKPt, setAlreadyInBKPt] = useState(false);
   const [error, setError] = useState("");
+  const [shipToName, setShipToName] = useState("");
+  const [shipToAddress, setShipToAddress] = useState("");
+  const [termsOfPayment, setTermsOfPayment] = useState("30 Days");
+  const [savingMetadata, setSavingMetadata] = useState(false);
+  const [metadataMessage, setMetadataMessage] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -296,6 +306,30 @@ export default function Invoice103DetailPage() {
         const invoiceResult = await getInvoice103ByNoInvoice(noInvoice);
 
         setData(invoiceResult);
+        setMetadata(null);
+        setMetadataMessage("");
+
+        // Default alamat cetak mengikuti nama langganan dari Sales 103.
+        setShipToName(invoiceResult?.langganan || "");
+        setShipToAddress("");
+        setTermsOfPayment("30 Days");
+
+        if (invoiceResult) {
+          try {
+            const metadataResult = await getInvoice103Metadata(noInvoice);
+
+            setMetadata(metadataResult);
+            setShipToName(
+              metadataResult.ship_to_name || invoiceResult.langganan || ""
+            );
+            setShipToAddress(metadataResult.ship_to_address || "");
+            setTermsOfPayment(metadataResult.terms_of_payment || "30 Days");
+          } catch (metadataError: any) {
+            if (metadataError?.response?.status !== 404) {
+              console.error(metadataError);
+            }
+          }
+        }
 
         try {
           const bkptResult = await getBKPtReceivables({
@@ -384,6 +418,32 @@ export default function Invoice103DetailPage() {
     router.push(`/bkpt?${query.toString()}`);
   }
 
+  async function handleSaveMetadata() {
+    if (!data) return;
+
+    try {
+      setSavingMetadata(true);
+      setMetadataMessage("");
+
+      const result = await saveInvoice103Metadata(data.no_invoice, {
+        ship_to_name: shipToName,
+        ship_to_address: shipToAddress,
+        terms_of_payment: termsOfPayment,
+      });
+
+      setMetadata(result);
+      setShipToName(result.ship_to_name || data.langganan || "");
+      setShipToAddress(result.ship_to_address || "");
+      setTermsOfPayment(result.terms_of_payment || "30 Days");
+      setMetadataMessage("Alamat invoice berhasil disimpan.");
+    } catch (saveError) {
+      console.error(saveError);
+      setMetadataMessage("Gagal menyimpan alamat invoice.");
+    } finally {
+      setSavingMetadata(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 p-6">
@@ -420,6 +480,10 @@ export default function Invoice103DetailPage() {
   }
 
   const rows = data.rows || [];
+  const printedShipToName = shipToName || data.langganan || "-";
+  const printedShipToAddress = shipToAddress || "-";
+  const printedTermsOfPayment =
+    termsOfPayment || (data as any).terms_of_payment || "30 Days";
 
   return (
     <>
@@ -550,6 +614,63 @@ export default function Invoice103DetailPage() {
           </div>
         )}
 
+        <div className="no-print mx-auto mb-4 max-w-5xl rounded-2xl border bg-white p-4 shadow-sm">
+          <div className="mb-3 flex flex-col justify-between gap-2 md:flex-row md:items-center">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                Alamat Cetak Invoice
+              </h2>
+              <p className="text-sm text-slate-500">
+                Alamat ini khusus untuk cetak Invoice 103 dan disimpan per nomor invoice.
+              </p>
+            </div>
+
+            <div className="text-xs text-slate-500">
+              {metadata ? "Sudah tersimpan" : "Belum ada alamat tersimpan"}
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-[1fr_2fr_180px]">
+            <input
+              value={shipToName}
+              onChange={(event) => setShipToName(event.target.value)}
+              placeholder="Nama tujuan / Ship to"
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            />
+
+            <textarea
+              value={shipToAddress}
+              onChange={(event) => setShipToAddress(event.target.value)}
+              placeholder="Alamat lengkap tujuan cetak invoice"
+              rows={3}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            />
+
+            <div className="flex flex-col gap-3">
+              <input
+                value={termsOfPayment}
+                onChange={(event) => setTermsOfPayment(event.target.value)}
+                placeholder="Terms of Payment"
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              />
+
+              <button
+                onClick={handleSaveMetadata}
+                disabled={savingMetadata}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+              >
+                {savingMetadata ? "Menyimpan..." : "Simpan Alamat"}
+              </button>
+            </div>
+          </div>
+
+          {metadataMessage && (
+            <div className="mt-3 text-sm text-slate-600">
+              {metadataMessage}
+            </div>
+          )}
+        </div>
+
         <div className="print-area mx-auto max-w-5xl rounded-2xl border bg-white p-6 shadow-sm">
           <div className="invoice-paper border border-slate-200 bg-white p-6 text-[12px] text-slate-900">
             <div className="mb-4">
@@ -569,10 +690,10 @@ export default function Invoice103DetailPage() {
               <div className="col-span-6 min-h-[105px] border border-slate-700 p-3">
                 <div className="mb-1 font-semibold">Ship to :</div>
                 <div className="font-bold uppercase">
-                  {data.langganan || "-"}
+                  {printedShipToName}
                 </div>
                 <div className="whitespace-pre-line">
-                  {(data as any).alamat || "-"}
+                  {printedShipToAddress}
                 </div>
               </div>
 
@@ -621,7 +742,7 @@ export default function Invoice103DetailPage() {
 
                   <div>Terms of Payment</div>
                   <div>:</div>
-                  <div>{(data as any).terms_of_payment || "30 Days"}</div>
+                  <div>{printedTermsOfPayment}</div>
                 </div>
               </div>
             </div>

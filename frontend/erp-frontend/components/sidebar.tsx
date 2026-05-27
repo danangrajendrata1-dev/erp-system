@@ -38,6 +38,7 @@ export default function Sidebar() {
   { title: "BKOrder", href: "/bkorder", icon: ShoppingCart },
   { title: "103", href: "/sales-103", icon: FileText },
   { title: "BKPt", href: "/bkpt", icon: FileText },
+  { title: "Invoice 103", href: "/invoice-103", icon: FileText },
   { title: "Bank 103", href: "/bank-103", icon: Wallet },
   { title: "Jenis Bahan", href: "/materials", icon: Layers },
 ];

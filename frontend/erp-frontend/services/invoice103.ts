@@ -1,5 +1,10 @@
 import api from "./api";
-import { Invoice103Group, Invoice103Source } from "@/types/invoice103";
+import {
+  Invoice103Group,
+  Invoice103Metadata,
+  Invoice103MetadataPayload,
+  Invoice103Source,
+} from "@/types/invoice103";
 
 function toNumber(value: number | string | null | undefined) {
   const numberValue = Number(value || 0);
@@ -52,4 +57,24 @@ export async function getInvoice103ByNoInvoice(noInvoice: string) {
   const groups = await getInvoice103Groups();
 
   return groups.find((item) => item.no_invoice === noInvoice) || null;
+}
+
+export async function getInvoice103Metadata(noInvoice: string) {
+  const response = await api.get<Invoice103Metadata>(
+    `/invoice-103-metadata/${encodeURIComponent(noInvoice)}`
+  );
+
+  return response.data;
+}
+
+export async function saveInvoice103Metadata(
+  noInvoice: string,
+  data: Invoice103MetadataPayload
+) {
+  const response = await api.put<Invoice103Metadata>(
+    `/invoice-103-metadata/${encodeURIComponent(noInvoice)}`,
+    data
+  );
+
+  return response.data;
 }

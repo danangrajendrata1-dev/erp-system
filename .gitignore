@@ -4,3 +4,9 @@ __pycache__/
 frontend/erp-frontend/node_modules/
 frontend/erp-frontend/.next/
 .env.local
+
+# Local dev server logs
+backend-dev.log
+backend-dev.err.log
+frontend/erp-frontend/next-dev.log
+frontend/erp-frontend/next-dev.err.log

@@ -28,3 +28,19 @@ export interface Invoice103Group {
   total_ppn_keluar: number;
   total_piutang_dagang: number;
 }
+
+export interface Invoice103Metadata {
+  id: number;
+  no_invoice: string;
+  ship_to_name?: string | null;
+  ship_to_address?: string | null;
+  terms_of_payment?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface Invoice103MetadataPayload {
+  ship_to_name?: string | null;
+  ship_to_address?: string | null;
+  terms_of_payment?: string | null;
+}
