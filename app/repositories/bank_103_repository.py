@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.bank_103_model import Bank103
+from app.models.bank_103_model import Bank103, Bank103BKPtAllocation
 from app.schemas.bank_103_schema import Bank103Create, Bank103Update
 
 
@@ -21,7 +21,7 @@ class Bank103Repository:
         query = self.db.query(Bank103)
 
         if kode:
-            query = query.filter(Bank103.kode == kode)
+            query = query.filter(func.lower(Bank103.kode) == kode.lower())
 
         if no_invoice:
             query = query.filter(Bank103.no_invoice.ilike(f"%{no_invoice}%"))
@@ -29,7 +29,13 @@ class Bank103Repository:
         if is_used is not None:
             query = query.filter(Bank103.is_used == is_used)
 
-        return query.order_by(Bank103.tgl.desc().nullslast(), Bank103.id.desc()).all()
+        return (
+            query.order_by(
+                Bank103.tgl.desc().nullslast(),
+                Bank103.id.desc(),
+            )
+            .all()
+        )
 
     def get_by_id(self, bank_id: int):
         return self.db.query(Bank103).filter(Bank103.id == bank_id).first()
@@ -40,8 +46,43 @@ class Bank103Repository:
             .filter(func.lower(Bank103.kode) == "bkpt")
             .filter(Bank103.debet > 0)
             .filter(Bank103.is_used == False)  # noqa: E712
-            .order_by(Bank103.tgl.desc().nullslast(), Bank103.id.desc())
+            .order_by(
+                Bank103.tgl.desc().nullslast(),
+                Bank103.id.desc(),
+            )
             .all()
+        )
+
+    def get_allocations_by_bank_id(self, bank_id: int):
+        return (
+            self.db.query(Bank103BKPtAllocation)
+            .filter(Bank103BKPtAllocation.bank_103_id == bank_id)
+            .order_by(Bank103BKPtAllocation.id.asc())
+            .all()
+        )
+
+    def create_allocation(
+        self,
+        bank_103_id: int,
+        bkpt_receivable_id: int,
+        allocated_amount,
+    ):
+        allocation = Bank103BKPtAllocation(
+            bank_103_id=bank_103_id,
+            bkpt_receivable_id=bkpt_receivable_id,
+            allocated_amount=allocated_amount,
+        )
+
+        self.db.add(allocation)
+        self.db.flush()
+
+        return allocation
+
+    def delete_allocations_by_bank_id(self, bank_id: int):
+        (
+            self.db.query(Bank103BKPtAllocation)
+            .filter(Bank103BKPtAllocation.bank_103_id == bank_id)
+            .delete(synchronize_session=False)
         )
 
     def create(self, data: Bank103Create):

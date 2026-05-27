@@ -3,6 +3,7 @@ import {
   Bank103,
   Bank103Payload,
   ApplyBank103ToBkptPayload,
+  AllocateBank103ToBkptPayload,
 } from "@/types/bank103";
 
 function normalizeList(data: unknown): Bank103[] {
@@ -70,6 +71,14 @@ export async function applyBank103ToBkpt(
   payload: ApplyBank103ToBkptPayload
 ): Promise<unknown> {
   const res = await api.post(`/bank-103/${bankId}/apply-to-bkpt`, payload);
+  return res.data;
+}
+
+export async function allocateBank103ToMultipleBkpt(
+  bankId: number,
+  payload: AllocateBank103ToBkptPayload
+): Promise<unknown> {
+  const res = await api.post(`/bank-103/${bankId}/allocate-bkpt`, payload);
   return res.data;
 }
 

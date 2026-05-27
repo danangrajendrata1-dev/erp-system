@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
 from app.schemas.bank_103_schema import (
+    AllocateBank103ToMultipleBKPtRequest,
     ApplyBank103ToBKPtRequest,
     Bank103Create,
     Bank103Response,
@@ -80,6 +81,18 @@ def apply_bank_103_to_bkpt(
     return Bank103Service(db).apply_to_bkpt(
         bank_id=bank_id,
         bkpt_receivable_id=data.bkpt_receivable_id,
+    )
+
+
+@router.post("/{bank_id}/allocate-bkpt")
+def allocate_bank_103_to_multiple_bkpt(
+    bank_id: int,
+    data: AllocateBank103ToMultipleBKPtRequest,
+    db: Session = Depends(get_db),
+):
+    return Bank103Service(db).allocate_to_multiple_bkpt(
+        bank_id=bank_id,
+        allocations=data.allocations,
     )
 
 
