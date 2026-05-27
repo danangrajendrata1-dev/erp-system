@@ -4,8 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import MaterialSearchInput from "@/components/MaterialSearchInput";
-import { getProductionOrder, updateProductionOrder } from "@/services/production";
-import { ProductionOrderPayload } from "@/types/production";
+import { getProductionOrder, updateProductionOrder } from "@/services/bkorder";
+import { ProductionOrderPayload } from "@/types/bkorder";
 import { MaterialType } from "@/types/material";
 import {
   parseUkuranMm,

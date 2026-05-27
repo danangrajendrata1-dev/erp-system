@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   deleteProductionOrder,
   getProductionOrders,
-} from "@/services/production";
-import { ProductionOrder } from "@/types/production";
+} from "@/services/bkorder";
+import { ProductionOrder } from "@/types/bkorder";
 
 const REPEAT_COLUMNS = Array.from({ length: 14 }, (_, index) => index);
 

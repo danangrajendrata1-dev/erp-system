@@ -2,7 +2,7 @@ import api from "./api";
 import {
   ProductionOrder,
   ProductionOrderPayload,
-} from "@/types/production";
+} from "@/types/bkorder";
 
 export async function getProductionOrders(): Promise<ProductionOrder[]> {
   const response = await api.get("/production-orders/");
