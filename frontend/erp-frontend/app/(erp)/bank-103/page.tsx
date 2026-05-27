@@ -10,9 +10,14 @@ import {
   Pencil,
   Trash2,
   RefreshCcw,
+  CheckCircle2,
 } from "lucide-react";
 import { Bank103 } from "@/types/bank103";
-import { deleteBank103, getBank103List } from "@/services/bank103";
+import {
+  autoApplyBank103ToBkpt,
+  deleteBank103,
+  getBank103List,
+} from "@/services/bank103";
 
 const MONTHS = [
   "JANUARI",
@@ -75,6 +80,7 @@ export default function Bank103Page() {
   const [monthFilter, setMonthFilter] = useState("ALL");
   const [yearFilter, setYearFilter] = useState("ALL");
   const [usedFilter, setUsedFilter] = useState("ALL");
+  const [autoApplyingId, setAutoApplyingId] = useState<number | null>(null);
 
   async function loadData() {
     try {
@@ -185,6 +191,34 @@ export default function Bank103Page() {
     } catch (error) {
       console.error(error);
       alert("Gagal menghapus data Bank 103.");
+    }
+  }
+
+  async function handleAutoApplyToBkpt(id: number) {
+    const ok = confirm(
+      "Cocokkan transaksi Bank 103 ini ke BKPt otomatis berdasarkan nomor invoice?"
+    );
+
+    if (!ok) return;
+
+    try {
+      setAutoApplyingId(id);
+      const result = await autoApplyBank103ToBkpt(id);
+      const message =
+        result && typeof result === "object" && "message" in result
+          ? String((result as { message?: unknown }).message || "")
+          : "Proses auto BKPt selesai.";
+
+      alert(message);
+      await loadData();
+    } catch (error: any) {
+      console.error(error);
+      alert(
+        error?.response?.data?.detail ||
+          "Gagal mencocokkan transaksi Bank 103 ke BKPt."
+      );
+    } finally {
+      setAutoApplyingId(null);
     }
   }
 
@@ -435,6 +469,18 @@ export default function Bank103Page() {
                             </td>
                             <td className="border px-3 py-2 print:hidden">
                               <div className="flex justify-center gap-2">
+                                {canUseForBkpt && (
+                                  <button
+                                    onClick={() => handleAutoApplyToBkpt(item.id)}
+                                    disabled={autoApplyingId === item.id}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+                                    title="Cocokkan otomatis ke BKPt"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    {autoApplyingId === item.id ? "Proses" : "Auto BKPt"}
+                                  </button>
+                                )}
+
                                 <Link
                                   href={`/bank-103/${item.id}`}
                                   className="rounded-lg border p-2 hover:bg-slate-100"

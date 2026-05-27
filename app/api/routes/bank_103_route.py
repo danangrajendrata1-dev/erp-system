@@ -81,3 +81,11 @@ def apply_bank_103_to_bkpt(
         bank_id=bank_id,
         bkpt_receivable_id=data.bkpt_receivable_id,
     )
+
+
+@router.post("/{bank_id}/auto-apply-to-bkpt")
+def auto_apply_bank_103_to_bkpt(
+    bank_id: int,
+    db: Session = Depends(get_db),
+):
+    return Bank103Service(db).auto_apply_to_bkpt(bank_id)

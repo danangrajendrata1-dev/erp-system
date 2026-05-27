@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
+  finalizeInvoice103ToBKPt,
   getInvoice103ByNoInvoice,
   getInvoice103Metadata,
   saveInvoice103Metadata,
@@ -296,6 +297,8 @@ export default function Invoice103DetailPage() {
   const [termsOfPayment, setTermsOfPayment] = useState("30 Days");
   const [savingMetadata, setSavingMetadata] = useState(false);
   const [metadataMessage, setMetadataMessage] = useState("");
+  const [finalizingBKPt, setFinalizingBKPt] = useState(false);
+  const [finalizationMessage, setFinalizationMessage] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -308,6 +311,7 @@ export default function Invoice103DetailPage() {
         setData(invoiceResult);
         setMetadata(null);
         setMetadataMessage("");
+        setFinalizationMessage("");
 
         // Default alamat cetak mengikuti nama langganan dari Sales 103.
         setShipToName(invoiceResult?.langganan || "");
@@ -393,19 +397,32 @@ export default function Invoice103DetailPage() {
     };
   }, [data]);
 
-  function handleMasukBKPt() {
+  async function handleMasukBKPt() {
     if (!data || alreadyInBKPt) return;
 
-    const query = new URLSearchParams({
-      customer_name: data.langganan || "",
-      tgl: data.tgl || "",
-      no_invoice: data.no_invoice || "",
-      faktur: (data as any).no_faktur || "",
-      debet: String(invoiceInfo.grandTotal || 0),
-      keterangan: `Piutang dari Invoice 103 ${data.no_invoice}`,
-    });
+    const confirmed = confirm(
+      "Finalisasi invoice ini ke BKPt? Sistem akan membuat piutang otomatis."
+    );
 
-    router.push(`/bkpt/create?${query.toString()}`);
+    if (!confirmed) return;
+
+    try {
+      setFinalizingBKPt(true);
+      setFinalizationMessage("");
+
+      await finalizeInvoice103ToBKPt(data.no_invoice);
+
+      setAlreadyInBKPt(true);
+      setFinalizationMessage("Invoice berhasil difinalisasi ke BKPt.");
+    } catch (finalizeError: any) {
+      console.error(finalizeError);
+      setFinalizationMessage(
+        finalizeError?.response?.data?.detail ||
+          "Gagal finalisasi Invoice 103 ke BKPt."
+      );
+    } finally {
+      setFinalizingBKPt(false);
+    }
   }
 
   function handleLihatBKPt() {
@@ -600,9 +617,10 @@ export default function Invoice103DetailPage() {
             ) : (
               <button
                 onClick={handleMasukBKPt}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                disabled={finalizingBKPt}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
               >
-                + Masuk BKPt
+                {finalizingBKPt ? "Memproses..." : "Finalisasi ke BKPt"}
               </button>
             )}
           </div>
@@ -611,6 +629,12 @@ export default function Invoice103DetailPage() {
         {alreadyInBKPt && (
           <div className="no-print mx-auto mb-4 max-w-5xl rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
             Invoice ini sudah tercatat di BKPt / Buku Piutang.
+          </div>
+        )}
+
+        {finalizationMessage && (
+          <div className="no-print mx-auto mb-4 max-w-5xl rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+            {finalizationMessage}
           </div>
         )}
 

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.bank_103_model import Bank103
@@ -36,7 +37,7 @@ class Bank103Repository:
     def get_available_bkpt_payments(self):
         return (
             self.db.query(Bank103)
-            .filter(Bank103.kode == "BkPt")
+            .filter(func.lower(Bank103.kode) == "bkpt")
             .filter(Bank103.debet > 0)
             .filter(Bank103.is_used == False)  # noqa: E712
             .order_by(Bank103.tgl.desc().nullslast(), Bank103.id.desc())

@@ -1,4 +1,5 @@
 import api from "./api";
+import { BKPtReceivable } from "@/types/bkpt";
 import {
   Invoice103Group,
   Invoice103Metadata,
@@ -74,6 +75,20 @@ export async function saveInvoice103Metadata(
   const response = await api.put<Invoice103Metadata>(
     `/invoice-103-metadata/${encodeURIComponent(noInvoice)}`,
     data
+  );
+
+  return response.data;
+}
+
+export async function finalizeInvoice103ToBKPt(noInvoice: string) {
+  const response = await api.post<BKPtReceivable>(
+    "/sales-103/finalize-bkpt",
+    null,
+    {
+      params: {
+        no_invoice: noInvoice,
+      },
+    }
   );
 
   return response.data;

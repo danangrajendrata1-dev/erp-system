@@ -1,15 +1,21 @@
 from typing import List
 from urllib.parse import unquote
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
+from app.schemas.bkpt_receivables_schema import (
+    BKPtReceivableCreate,
+    BKPtReceivableResponse,
+)
 from app.schemas.sales_103_schema import (
     Sales103Create,
     Sales103Update,
     Sales103Response,
 )
+from app.services.bkpt_receivables_service import BKPtReceivableService
 from app.services.sales_103_service import Sales103Service
 
 
@@ -19,6 +25,7 @@ router = APIRouter(
 )
 
 service = Sales103Service()
+bkpt_service = BKPtReceivableService()
 
 
 def to_number(value):
@@ -69,6 +76,38 @@ def get_piutang(row):
         return piutang
 
     return get_dpp(row) + get_ppn(row)
+
+
+def to_decimal_money(value):
+    return Decimal(str(value or 0)).quantize(Decimal("0.01"))
+
+
+def get_rows_by_invoice(rows, no_invoice: str):
+    return [
+        row
+        for row in rows
+        if str(get_value(row, "no_invoice", "invoice_number") or "")
+        .strip()
+        .lower()
+        == no_invoice.lower()
+    ]
+
+
+def unique_join(rows, *fields):
+    values = []
+
+    for row in rows:
+        value = get_value(row, *fields)
+
+        if not value:
+            continue
+
+        text = str(value).strip()
+
+        if text and text not in values:
+            values.append(text)
+
+    return ", ".join(values)
 
 
 @router.get("/", response_model=List[Sales103Response])
@@ -163,15 +202,7 @@ def get_sales_103_by_invoice(
     decoded_invoice = unquote(no_invoice).strip()
 
     rows = service.get_all(db)
-
-    filtered_rows = [
-        row
-        for row in rows
-        if str(get_value(row, "no_invoice", "invoice_number") or "")
-        .strip()
-        .lower()
-        == decoded_invoice.lower()
-    ]
+    filtered_rows = get_rows_by_invoice(rows, decoded_invoice)
 
     if not filtered_rows:
         raise HTTPException(
@@ -180,6 +211,81 @@ def get_sales_103_by_invoice(
         )
 
     return filtered_rows
+
+
+@router.post(
+    "/finalize-bkpt",
+    response_model=BKPtReceivableResponse,
+)
+def finalize_invoice_103_to_bkpt(
+    no_invoice: str,
+    db: Session = Depends(get_db),
+):
+    decoded_invoice = unquote(no_invoice).strip()
+    rows = get_rows_by_invoice(service.get_all(db), decoded_invoice)
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Invoice {decoded_invoice} tidak ditemukan",
+        )
+
+    existing_items = bkpt_service.get_all(db, no_invoice=decoded_invoice)
+    exact_existing_items = [
+        item
+        for item in existing_items
+        if str(item.no_invoice or "").strip().lower() == decoded_invoice.lower()
+    ]
+
+    if exact_existing_items:
+        return exact_existing_items[0]
+
+    first_row = rows[0]
+    total_piutang = sum(get_piutang(row) for row in rows)
+
+    if total_piutang <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Total piutang Invoice 103 harus lebih dari 0",
+        )
+
+    customer_name = str(
+        get_value(
+            first_row,
+            "langganan",
+            "pelanggan",
+            "customer",
+            "customer_name",
+        )
+        or ""
+    ).strip()
+
+    if not customer_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Langganan Invoice 103 belum terisi",
+        )
+
+    total_piutang_decimal = to_decimal_money(total_piutang)
+
+    # Finalisasi ini membuat satu baris BKPt per nomor invoice, bukan per item 103.
+    payload = BKPtReceivableCreate(
+        customer_name=customer_name,
+        tgl=get_value(first_row, "tgl", "date"),
+        no_order=unique_join(rows, "no_ord", "no_order", "po_number", "po_no"),
+        no_invoice=decoded_invoice,
+        faktur=unique_join(rows, "no_faktur", "faktur"),
+        pr=customer_name,
+        debet=total_piutang_decimal,
+        kredit=Decimal("0"),
+        pph_psl_21=Decimal("0"),
+        pph_psl_23=Decimal("0"),
+        saldo=total_piutang_decimal,
+        keterangan=f"Piutang dari Invoice 103 {decoded_invoice}",
+        sales_103_id=getattr(first_row, "id", None),
+    )
+
+    return bkpt_service.create(db, payload)
 
 
 @router.get("/{sales_103_id}", response_model=Sales103Response)

@@ -72,3 +72,8 @@ export async function applyBank103ToBkpt(
   const res = await api.post(`/bank-103/${bankId}/apply-to-bkpt`, payload);
   return res.data;
 }
+
+export async function autoApplyBank103ToBkpt(bankId: number): Promise<unknown> {
+  const res = await api.post(`/bank-103/${bankId}/auto-apply-to-bkpt`);
+  return res.data;
+}
