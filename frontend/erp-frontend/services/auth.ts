@@ -1,5 +1,26 @@
 import api from "./api";
 
+type LoginResponse = {
+  access_token?: string;
+  token_type?: string;
+  user?: {
+    id?: number;
+    username?: string;
+    email?: string;
+    role?: string;
+  } | null;
+};
+
+function unwrapResponse<T>(value: T | { data?: T } | null | undefined): T | null {
+  if (!value) return null;
+
+  if (typeof value === "object" && "data" in value && value.data) {
+    return value.data as T;
+  }
+
+  return value as T;
+}
+
 export const loginUser = async (
   email: string,
   password: string
@@ -9,7 +30,7 @@ export const loginUser = async (
     password,
   });
 
-  return response.data;
+  return unwrapResponse<LoginResponse>(response.data);
 };
 
 export const registerUser = async (
@@ -23,5 +44,5 @@ export const registerUser = async (
     password,
   });
 
-  return response.data;
+  return unwrapResponse(response.data);
 };

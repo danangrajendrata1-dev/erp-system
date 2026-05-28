@@ -1,46 +1,50 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { loginUser, registerUser } from "@/services/auth";
 
 export default function AuthPage() {
-  const router = useRouter();
-
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-  try {
-    setError("");
+    if (loading) return;
 
-    if (isLogin) {
-      const response = await loginUser(email, password);
+    try {
+      setLoading(true);
+      setError("");
 
-      if (!response?.access_token) {
-        setError("Login gagal. Token tidak diterima.");
+      if (isLogin) {
+        const response = await loginUser(email, password);
+
+        if (!response?.access_token) {
+          setError("Login gagal. Token tidak diterima dari server.");
+          return;
+        }
+
+        localStorage.setItem("token", response.access_token);
+        localStorage.setItem("user", JSON.stringify(response.user ?? null));
+
+        window.location.href = "/dashboard";
         return;
       }
 
-      localStorage.setItem("token", response.access_token);
-      localStorage.setItem("user", JSON.stringify(response.user ?? null));
-
-      window.location.href = "/dashboard";
-    } else {
       await registerUser(username, email, password);
 
       alert("Register berhasil. Silakan login.");
       setIsLogin(true);
+    } catch (err) {
+      console.error("AUTH ERROR:", err);
+      setError("Proses gagal. Cek email/password atau backend.");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("AUTH ERROR:", err);
-    setError("Proses gagal. Cek email/password.");
-  }
-};
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
@@ -83,9 +87,10 @@ export default function AuthPage() {
 
         <button
           onClick={handleSubmit}
-          className="w-full bg-black text-white p-3 rounded-lg"
+          disabled={loading}
+          className="w-full rounded-lg bg-black p-3 text-white transition disabled:cursor-not-allowed disabled:bg-slate-500"
         >
-          {isLogin ? "Login" : "Register"}
+          {loading ? "Memproses..." : isLogin ? "Login" : "Register"}
         </button>
 
         <button
