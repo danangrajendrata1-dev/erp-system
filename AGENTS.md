@@ -21,3 +21,15 @@ Sebelum mengedit:
 2. Jelaskan file mana yang akan diubah.
 3. Beri perubahan bertahap.
 4. Jangan ubah banyak bagian sekaligus.
+
+# Aturan hemat token untuk Codex
+
+- Jangan scan seluruh project jika tugas hanya menyebut 1 modul.
+- Prioritaskan membaca file yang relevan saja.
+- Jangan menjelaskan terlalu panjang.
+- Jangan menulis ulang full file kecuali diminta.
+- Buat patch minimal.
+- Jangan ubah file di luar scope tugas.
+- Sebelum coding, sebutkan file yang akan diubah secara singkat.
+- Setelah coding, jelaskan perubahan maksimal 5 poin.
+- Jangan menjalankan test/build berulang tanpa alasan.
