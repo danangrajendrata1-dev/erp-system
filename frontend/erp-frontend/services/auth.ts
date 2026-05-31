@@ -11,6 +11,23 @@ type LoginResponse = {
   } | null;
 };
 
+export function getStoredToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return localStorage.getItem("token");
+}
+
+export function clearAuthStorage() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+}
+
 function unwrapResponse<T>(value: T | { data?: T } | null | undefined): T | null {
   if (!value) return null;
 
@@ -29,6 +46,8 @@ export const loginUser = async (
     email,
     password,
   });
+
+  console.log("LOGIN RESPONSE", response.data);
 
   return unwrapResponse<LoginResponse>(response.data);
 };

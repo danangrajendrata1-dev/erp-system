@@ -4,20 +4,16 @@ import { useEffect } from "react";
 
 import { useRouter } from "next/navigation";
 
-export default function useAuth() {
+import { getStoredToken } from "@/services/auth";
 
+export default function useAuth() {
   const router = useRouter();
 
   useEffect(() => {
-
-    const token = localStorage.getItem(
-      "token"
-    );
+    const token = getStoredToken();
 
     if (!token) {
-
-      router.push("/");
+      router.replace("/");
     }
-
   }, [router]);
 }

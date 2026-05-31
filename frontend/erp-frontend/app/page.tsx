@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+
 import { loginUser, registerUser } from "@/services/auth";
 
 export default function AuthPage() {
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -22,15 +25,19 @@ export default function AuthPage() {
       if (isLogin) {
         const response = await loginUser(email, password);
 
+        console.log("LOGIN RESPONSE PARSED", response);
+
         if (!response?.access_token) {
+          console.error("LOGIN TOKEN MISSING", response);
           setError("Login gagal. Token tidak diterima dari server.");
           return;
         }
 
         localStorage.setItem("token", response.access_token);
         localStorage.setItem("user", JSON.stringify(response.user ?? null));
+        window.dispatchEvent(new Event("storage"));
 
-        window.location.href = "/dashboard";
+        router.replace("/dashboard");
         return;
       }
 
@@ -40,7 +47,7 @@ export default function AuthPage() {
       setIsLogin(true);
     } catch (err) {
       console.error("AUTH ERROR:", err);
-      setError("Proses gagal. Cek email/password atau backend.");
+      setError("Proses gagal. Cek console/browser log dan response server.");
     } finally {
       setLoading(false);
     }

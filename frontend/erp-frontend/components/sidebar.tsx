@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ComponentType } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { clearAuthStorage } from "@/services/auth";
 
 import {
   BarChart3,
@@ -17,10 +18,8 @@ import {
   LogOut,
   Package,
   ReceiptText,
-  ScrollText,
   Settings,
   ShoppingCart,
-  Truck,
   UserRound,
   Users,
   Wallet,
@@ -113,9 +112,9 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/");
+    clearAuthStorage();
+    window.dispatchEvent(new Event("storage"));
+    router.replace("/");
   };
 
   return (
@@ -138,7 +137,7 @@ export default function Sidebar() {
               {group.title}
             </p>
 
-            <div className="space-y-1 rounded-xl border border-white/5 bg-white/[0.03] p-1">
+              <div className="space-y-1 rounded-xl border border-white/5 bg-white/[0.03] p-1">
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = isMenuActive(pathname, item.href);
