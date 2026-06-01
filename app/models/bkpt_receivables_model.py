@@ -10,6 +10,8 @@ class BKPtReceivable(Base):
     customer_name = Column(String(255), nullable=False, index=True)
 
     tgl = Column(Date, nullable=True)
+    invoice_year = Column(Integer, nullable=True, index=True)
+    invoice_month = Column(Integer, nullable=True, index=True)
     no_order = Column(String(100), nullable=True, index=True)
     no_invoice = Column(String(100), nullable=True, index=True)
     faktur = Column(String(100), nullable=True, index=True)

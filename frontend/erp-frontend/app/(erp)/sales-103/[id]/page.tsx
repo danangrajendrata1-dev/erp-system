@@ -98,6 +98,25 @@ function getPartialOptions(order: BKOrder | null) {
     .filter((item) => item.quantity > 0 || item.deliveryDate);
 }
 
+function buildInvoice103DetailHref(
+  invoiceDate?: string | null,
+  noInvoice?: string | null,
+) {
+  if (!invoiceDate || !noInvoice) {
+    return "/sales-103";
+  }
+
+  const date = new Date(invoiceDate);
+
+  if (Number.isNaN(date.getTime())) {
+    return `/invoice-103/${encodeURIComponent(noInvoice)}`;
+  }
+
+  return `/invoice-103/${date.getFullYear()}/${String(
+    date.getMonth() + 1,
+  ).padStart(2, "0")}/${encodeURIComponent(noInvoice)}`;
+}
+
 export default function EditSales103Page() {
   const router = useRouter();
   const params = useParams();
@@ -318,7 +337,7 @@ export default function EditSales103Page() {
       });
 
       if (savedData.no_invoice) {
-        router.push(`/invoice-103/${encodeURIComponent(savedData.no_invoice)}`);
+        router.push(buildInvoice103DetailHref(savedData.tgl, savedData.no_invoice));
         return;
       }
 

@@ -1,6 +1,6 @@
 from urllib.parse import unquote
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
@@ -22,19 +22,34 @@ service = Invoice103MetadataService()
 @router.get("/{no_invoice:path}", response_model=Invoice103MetadataResponse)
 def get_invoice_103_metadata(
     no_invoice: str,
+    year: int | None = Query(default=None),
+    month: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     decoded_invoice = unquote(no_invoice).strip()
 
-    return service.get_by_no_invoice(db, decoded_invoice)
+    return service.get_by_invoice(
+        db,
+        decoded_invoice,
+        invoice_year=year,
+        invoice_month=month,
+    )
 
 
 @router.put("/{no_invoice:path}", response_model=Invoice103MetadataResponse)
 def save_invoice_103_metadata(
     no_invoice: str,
     payload: Invoice103MetadataUpdate,
+    year: int | None = Query(default=None),
+    month: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     decoded_invoice = unquote(no_invoice).strip()
 
-    return service.upsert(db, decoded_invoice, payload)
+    return service.upsert(
+        db,
+        decoded_invoice,
+        invoice_year=year,
+        invoice_month=month,
+        data=payload,
+    )

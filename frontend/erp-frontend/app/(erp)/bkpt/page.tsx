@@ -111,6 +111,18 @@ function getMonthTitle(monthKey: string) {
   return `BUKU PIUTANG ${monthName} ${year}`;
 }
 
+function getInvoicePeriodLabel(item: BKPtReceivable) {
+  if (item.invoice_year && item.invoice_month) {
+    const monthName = MONTH_NAMES[item.invoice_month - 1];
+    return `${monthName} ${item.invoice_year}`;
+  }
+
+  const date = toDate(item.tgl);
+  if (!date) return "";
+
+  return `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+}
+
 function getPaymentStatus(item: BKPtReceivable): PaymentStatus {
   const debet = toNumber(item.debet);
   const kredit = toNumber(item.kredit);
@@ -683,7 +695,12 @@ function BKPtPageContent() {
                             </td>
 
                             <td className="border border-slate-200 px-3 py-2 font-semibold text-slate-900">
-                              {item.no_invoice}
+                              <div>{item.no_invoice}</div>
+                              {getInvoicePeriodLabel(item) && (
+                                <div className="mt-1 text-[11px] font-medium text-slate-500">
+                                  {getInvoicePeriodLabel(item)}
+                                </div>
+                              )}
                             </td>
 
                             <td className="border border-slate-200 px-3 py-2 text-slate-700">

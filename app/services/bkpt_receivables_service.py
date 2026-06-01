@@ -43,6 +43,8 @@ class BKPtReceivableService:
         month: int | None = None,
         year: int | None = None,
         no_invoice: str | None = None,
+        invoice_year: int | None = None,
+        invoice_month: int | None = None,
     ):
         return self.repository.get_all(
             db=db,
@@ -50,6 +52,8 @@ class BKPtReceivableService:
             month=month,
             year=year,
             no_invoice=no_invoice,
+            invoice_year=invoice_year,
+            invoice_month=invoice_month,
         )
 
     def get_by_id(self, db: Session, bkpt_id: int):

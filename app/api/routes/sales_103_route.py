@@ -1,3 +1,4 @@
+from datetime import date
 from typing import List
 from urllib.parse import unquote
 from decimal import Decimal, ROUND_HALF_UP
@@ -96,6 +97,24 @@ def get_rows_by_invoice(rows, no_invoice: str):
     ]
 
 
+def get_rows_by_invoice_period(rows, no_invoice: str, year: int, month: int):
+    filtered_rows = []
+
+    for row in rows:
+        row_invoice = str(
+            get_value(row, "no_invoice", "invoice_number") or ""
+        ).strip().lower()
+        row_date = get_value(row, "tgl", "date")
+
+        if row_invoice != no_invoice.lower() or not row_date:
+            continue
+
+        if row_date.year == year and row_date.month == month:
+            filtered_rows.append(row)
+
+    return filtered_rows
+
+
 def unique_join(rows, *fields):
     values = []
 
@@ -118,6 +137,16 @@ def get_all_sales_103(db: Session = Depends(get_db)):
     return service.get_all(db)
 
 
+@router.get("/invoices/next-number")
+def get_next_invoice_number(
+    tgl: date,
+    db: Session = Depends(get_db),
+):
+    return {
+        "next_invoice": service.get_next_invoice_number(db, tgl),
+    }
+
+
 @router.get("/invoices")
 def get_invoice_103_groups(db: Session = Depends(get_db)):
     rows = service.get_all(db)
@@ -133,9 +162,12 @@ def get_invoice_103_groups(db: Session = Depends(get_db)):
         no_invoice = str(no_invoice).strip()
 
         if no_invoice not in grouped:
+            invoice_date = get_value(row, "tgl", "date")
             grouped[no_invoice] = {
                 "no_invoice": no_invoice,
-                "tgl": get_value(row, "tgl", "date"),
+                "tgl": invoice_date,
+                "year": invoice_date.year if invoice_date else None,
+                "month": invoice_date.month if invoice_date else None,
                 "langganan": get_value(
                     row,
                     "langganan",
@@ -197,6 +229,29 @@ def get_invoice_103_groups(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/invoice/{year}/{month}/{no_invoice}", response_model=List[Sales103Response])
+def get_sales_103_by_invoice_period(
+    year: int,
+    month: int,
+    no_invoice: str,
+    db: Session = Depends(get_db),
+):
+    decoded_invoice = unquote(no_invoice).strip()
+
+    rows = service.get_all(db)
+    filtered_rows = get_rows_by_invoice_period(rows, decoded_invoice, year, month)
+
+    if not filtered_rows:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Invoice {decoded_invoice} periode {year}-{month:02d} tidak ditemukan"
+            ),
+        )
+
+    return filtered_rows
+
+
 @router.get("/invoice/{no_invoice}", response_model=List[Sales103Response])
 def get_sales_103_by_invoice(
     no_invoice: str,
@@ -214,36 +269,61 @@ def get_sales_103_by_invoice(
         )
 
     return filtered_rows
-
-
 @router.post(
     "/finalize-bkpt",
     response_model=BKPtReceivableResponse,
 )
 def finalize_invoice_103_to_bkpt(
     no_invoice: str,
+    year: int | None = None,
+    month: int | None = None,
     db: Session = Depends(get_db),
 ):
     decoded_invoice = unquote(no_invoice).strip()
-    rows = get_rows_by_invoice(service.get_all(db), decoded_invoice)
+    all_rows = service.get_all(db)
+    rows = (
+        get_rows_by_invoice_period(all_rows, decoded_invoice, year, month)
+        if year is not None and month is not None
+        else get_rows_by_invoice(all_rows, decoded_invoice)
+    )
 
     if not rows:
         raise HTTPException(
             status_code=404,
-            detail=f"Invoice {decoded_invoice} tidak ditemukan",
+            detail=(
+                f"Invoice {decoded_invoice} periode {year}-{month:02d} tidak ditemukan"
+                if year is not None and month is not None
+                else f"Invoice {decoded_invoice} tidak ditemukan"
+            ),
         )
 
-    existing_items = bkpt_service.get_all(db, no_invoice=decoded_invoice)
+    first_row = rows[0]
+    invoice_date = get_value(first_row, "tgl", "date")
+    invoice_year = year if year is not None else getattr(invoice_date, "year", None)
+    invoice_month = month if month is not None else getattr(invoice_date, "month", None)
+
+    existing_items = bkpt_service.get_all(
+        db,
+        no_invoice=decoded_invoice,
+        invoice_year=invoice_year,
+        invoice_month=invoice_month,
+    )
     exact_existing_items = [
         item
         for item in existing_items
-        if str(item.no_invoice or "").strip().lower() == decoded_invoice.lower()
+        if (
+            str(item.no_invoice or "").strip().lower() == decoded_invoice.lower()
+            and item.invoice_year == invoice_year
+            and item.invoice_month == invoice_month
+        )
     ]
 
     if exact_existing_items:
-        return exact_existing_items[0]
+        raise HTTPException(
+            status_code=400,
+            detail="Invoice ini sudah difinalisasi ke BKPt untuk periode tersebut.",
+        )
 
-    first_row = rows[0]
     total_piutang = sum(get_piutang(row) for row in rows)
 
     if total_piutang <= 0:
@@ -275,6 +355,8 @@ def finalize_invoice_103_to_bkpt(
     payload = BKPtReceivableCreate(
         customer_name=customer_name,
         tgl=get_value(first_row, "tgl", "date"),
+        invoice_year=invoice_year,
+        invoice_month=invoice_month,
         no_order=unique_join(rows, "no_ord", "no_order", "po_number", "po_no"),
         no_invoice=decoded_invoice,
         faktur=unique_join(rows, "no_faktur", "faktur"),
@@ -291,7 +373,7 @@ def finalize_invoice_103_to_bkpt(
     return bkpt_service.create(db, payload)
 
 
-@router.get("/{sales_103_id}", response_model=Sales103Response)
+@router.get("/{sales_103_id:int}", response_model=Sales103Response)
 def get_sales_103_by_id(
     sales_103_id: int,
     db: Session = Depends(get_db),
@@ -315,7 +397,7 @@ def create_sales_103(
     return service.create(db, payload)
 
 
-@router.put("/{sales_103_id}", response_model=Sales103Response)
+@router.put("/{sales_103_id:int}", response_model=Sales103Response)
 def update_sales_103(
     sales_103_id: int,
     payload: Sales103Update,
@@ -332,7 +414,7 @@ def update_sales_103(
     return data
 
 
-@router.delete("/{sales_103_id}")
+@router.delete("/{sales_103_id:int}")
 def delete_sales_103(
     sales_103_id: int,
     db: Session = Depends(get_db),

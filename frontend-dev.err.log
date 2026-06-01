@@ -1,0 +1,62 @@
+[browser] LOGIN REQUEST ERROR AxiosError: Network Error
+    at async loginUser (services/auth.ts:41:20)
+    at async handleSubmit (app/page.tsx:53:22)
+  39 |   password: string
+  40 | ) => {
+> 41 |   const response = await api.post("/auth/login", {
+     |                    ^
+  42 |     email,
+  43 |     password,
+  44 |   }); (app/page.tsx:55:19)
+[browser] LOGIN REQUEST ERROR AxiosError: Network Error
+    at async loginUser (services/auth.ts:41:20)
+    at async handleSubmit (app/page.tsx:53:22)
+  39 |   password: string
+  40 | ) => {
+> 41 |   const response = await api.post("/auth/login", {
+     |                    ^
+  42 |     email,
+  43 |     password,
+  44 |   }); (app/page.tsx:55:19)
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⨯ unhandledRejection: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⨯ unhandledRejection:  Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames
+Error: You cannot use different slug names for the same dynamic path ('no_invoice' !== 'year').
+    at ignore-listed frames

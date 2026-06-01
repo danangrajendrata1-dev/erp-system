@@ -9,6 +9,8 @@ class BKPtReceivableBase(BaseModel):
     customer_name: str
 
     tgl: Optional[date] = None
+    invoice_year: Optional[int] = None
+    invoice_month: Optional[int] = None
     no_order: Optional[str] = None
     no_invoice: Optional[str] = None
     faktur: Optional[str] = None
@@ -32,6 +34,8 @@ class BKPtReceivableUpdate(BaseModel):
     customer_name: Optional[str] = None
 
     tgl: Optional[date] = None
+    invoice_year: Optional[int] = None
+    invoice_month: Optional[int] = None
     no_order: Optional[str] = None
     no_invoice: Optional[str] = None
     faktur: Optional[str] = None

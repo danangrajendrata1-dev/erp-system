@@ -3,7 +3,11 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createSales103, getSales103ById } from "@/services/sales103";
+import {
+  createSales103,
+  getNextSales103InvoiceNumber,
+  getSales103ById,
+} from "@/services/sales103";
 import { Sales103Create } from "@/types/sales103";
 import { getBKOrders } from "@/services/bkorder";
 import { BKOrder } from "@/types/bkorder";
@@ -98,13 +102,36 @@ function getPartialOptions(order: BKOrder | null) {
     .filter((item) => item.quantity > 0 || item.deliveryDate);
 }
 
+function buildInvoice103DetailHref(
+  invoiceDate?: string | null,
+  noInvoice?: string | null,
+) {
+  if (!invoiceDate || !noInvoice) {
+    return "/sales-103";
+  }
+
+  const date = new Date(invoiceDate);
+
+  if (Number.isNaN(date.getTime())) {
+    return `/invoice-103/${encodeURIComponent(noInvoice)}`;
+  }
+
+  return `/invoice-103/${date.getFullYear()}/${String(
+    date.getMonth() + 1,
+  ).padStart(2, "0")}/${encodeURIComponent(noInvoice)}`;
+}
+
+function getTodayInputDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function CreateSales103Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const copyFrom = searchParams.get("copyFrom");
 
   const [form, setForm] = useState<Sales103Create>({
-    tgl: "",
+    tgl: getTodayInputDate(),
     no_ord: "",
     no_invoice: "",
     no_faktur: "",
@@ -127,6 +154,8 @@ function CreateSales103Content() {
   const [bkorders, setBKOrders] = useState<BKOrder[]>([]);
   const [selectedBKOrderId, setSelectedBKOrderId] = useState("");
   const [selectedPartialIndex, setSelectedPartialIndex] = useState("");
+  const [invoiceAutoTouched, setInvoiceAutoTouched] = useState(false);
+  const [invoiceAutoError, setInvoiceAutoError] = useState("");
 
   const preview = useMemo(() => {
     const jml = Number(form.jml || 0);
@@ -158,6 +187,10 @@ function CreateSales103Content() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) {
     const { name, value } = e.target;
+
+    if (name === "no_invoice") {
+      setInvoiceAutoTouched(true);
+    }
 
     const numberFields = [
       "jml",
@@ -321,7 +354,7 @@ function CreateSales103Content() {
       });
 
       if (savedData.no_invoice) {
-        router.push(`/invoice-103/${encodeURIComponent(savedData.no_invoice)}`);
+        router.push(buildInvoice103DetailHref(savedData.tgl, savedData.no_invoice));
         return;
       }
 
@@ -329,7 +362,10 @@ function CreateSales103Content() {
       router.refresh();
     } catch (error) {
       console.error("Gagal menyimpan data 103:", error);
-      alert("Gagal menyimpan data 103");
+      alert(
+        (error as { response?: { data?: { detail?: string } } })?.response?.data
+          ?.detail || "Gagal menyimpan data 103",
+      );
     } finally {
       setLoading(false);
     }
@@ -342,6 +378,30 @@ function CreateSales103Content() {
   useEffect(() => {
     loadCopiedInvoice();
   }, [copyFrom, bkorders.length]);
+
+  useEffect(() => {
+    async function syncInvoiceNumber() {
+      if (!form.tgl || invoiceAutoTouched || copyFrom) {
+        return;
+      }
+
+      try {
+        setInvoiceAutoError("");
+        const nextInvoice = await getNextSales103InvoiceNumber(form.tgl);
+        setForm((prev) => ({
+          ...prev,
+          no_invoice: nextInvoice,
+        }));
+      } catch (error) {
+        console.error("Gagal mengambil nomor invoice otomatis:", error);
+        setInvoiceAutoError(
+          "Nomor invoice otomatis tidak bisa diambil. Anda tetap bisa mengisi manual.",
+        );
+      }
+    }
+
+    syncInvoiceNumber();
+  }, [copyFrom, form.tgl, invoiceAutoTouched]);
 
   const selectedBKOrder = useMemo(() => {
     return (
@@ -485,6 +545,9 @@ function CreateSales103Content() {
               className="w-full rounded border px-3 py-2 text-sm"
               placeholder="Contoh: LBR.0001"
             />
+            {invoiceAutoError ? (
+              <p className="mt-1 text-xs text-amber-700">{invoiceAutoError}</p>
+            ) : null}
           </div>
 
           <div>

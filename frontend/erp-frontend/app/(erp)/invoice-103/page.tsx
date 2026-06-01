@@ -49,9 +49,39 @@ function formatCurrency(value: number | string | null | undefined) {
 function buildBKPtInvoiceSet(items: BKPtReceivable[]) {
   return new Set(
     items
+      .map((item) => {
+        if (!item.no_invoice || !item.invoice_year || !item.invoice_month) {
+          return null;
+        }
+
+        return `${item.invoice_year}-${String(item.invoice_month).padStart(2, "0")}-${normalizeText(item.no_invoice)}`;
+      })
+      .filter((value): value is string => Boolean(value))
+  );
+}
+
+function getInvoiceStatusKey(invoice: Invoice103Group) {
+  if (!invoice.year || !invoice.month) {
+    return null;
+  }
+
+  return `${invoice.year}-${String(invoice.month).padStart(2, "0")}-${normalizeText(invoice.no_invoice)}`;
+}
+
+function buildLegacyBKPtInvoiceSet(items: BKPtReceivable[]) {
+  return new Set(
+    items
       .map((item) => normalizeText(item.no_invoice))
       .filter((value) => value.length > 0)
   );
+}
+
+function buildInvoiceDetailHref(invoice: Invoice103Group) {
+  if (invoice.year && invoice.month) {
+    return `/invoice-103/${invoice.year}/${String(invoice.month).padStart(2, "0")}/${encodeURIComponent(invoice.no_invoice)}`;
+  }
+
+  return `/invoice-103/${encodeURIComponent(invoice.no_invoice)}`;
 }
 
 export default function Invoice103Page() {
@@ -74,7 +104,11 @@ export default function Invoice103Page() {
       ]);
 
       setInvoices(invoiceResult);
-      setBKPtInvoiceSet(buildBKPtInvoiceSet(bkptResult));
+      const compositeSet = buildBKPtInvoiceSet(bkptResult);
+      const legacySet = buildLegacyBKPtInvoiceSet(bkptResult);
+      setBKPtInvoiceSet(
+        new Set<string>([...compositeSet, ...legacySet].filter(Boolean))
+      );
     } catch (err) {
       console.error(err);
       setError("Gagal mengambil data Invoice 103.");
@@ -91,7 +125,8 @@ export default function Invoice103Page() {
     const keyword = normalizeText(search);
 
     return invoices.filter((invoice) => {
-      const invoiceKey = normalizeText(invoice.no_invoice);
+      const invoiceKey =
+        getInvoiceStatusKey(invoice) || normalizeText(invoice.no_invoice);
       const alreadyInBKPt = bkptInvoiceSet.has(invoiceKey);
 
       const matchStatus =
@@ -120,7 +155,7 @@ export default function Invoice103Page() {
     return filteredInvoices.reduce(
       (acc, invoice) => {
         const alreadyInBKPt = bkptInvoiceSet.has(
-          normalizeText(invoice.no_invoice)
+          getInvoiceStatusKey(invoice) || normalizeText(invoice.no_invoice)
         );
 
         acc.totalInvoice += 1;
@@ -325,11 +360,14 @@ export default function Invoice103Page() {
                 ) : (
                   filteredInvoices.map((invoice) => {
                     const alreadyInBKPt = bkptInvoiceSet.has(
-                      normalizeText(invoice.no_invoice)
+                      getInvoiceStatusKey(invoice) || normalizeText(invoice.no_invoice)
                     );
 
                     return (
-                      <tr key={invoice.no_invoice} className="hover:bg-slate-50">
+                      <tr
+                        key={`${invoice.year}-${invoice.month}-${invoice.no_invoice}`}
+                        className="hover:bg-slate-50"
+                      >
                         <td className="border border-slate-200 px-3 py-2 text-slate-700">
                           {formatDate(invoice.tgl)}
                         </td>
@@ -365,9 +403,7 @@ export default function Invoice103Page() {
                         </td>
                         <td className="border border-slate-200 px-3 py-2 text-center">
                           <Link
-                            href={`/invoice-103/${encodeURIComponent(
-                              invoice.no_invoice
-                            )}`}
+                            href={buildInvoiceDetailHref(invoice)}
                             className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
                           >
                             <Printer size={14} />

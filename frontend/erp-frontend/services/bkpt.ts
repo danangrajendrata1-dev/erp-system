@@ -6,6 +6,8 @@ export async function getBKPtReceivables(params?: {
   month?: string;
   year?: string;
   no_invoice?: string;
+  invoice_year?: string | number;
+  invoice_month?: string | number;
 }) {
   const response = await api.get<BKPtReceivable[]>("/bkpt-receivables/", {
     params,

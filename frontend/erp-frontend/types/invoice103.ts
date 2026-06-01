@@ -39,6 +39,8 @@ export interface Invoice103Source {
 
 export interface Invoice103Group {
   no_invoice: string;
+  year: number | null;
+  month: number | null;
   no_faktur?: string | null;
   tgl?: string | null;
   langganan?: string | null;
@@ -51,6 +53,8 @@ export interface Invoice103Group {
 export interface Invoice103Metadata {
   id: number;
   no_invoice: string;
+  invoice_year?: number | null;
+  invoice_month?: number | null;
   ship_to_name?: string | null;
   ship_to_address?: string | null;
   terms_of_payment?: string | null;

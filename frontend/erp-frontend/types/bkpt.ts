@@ -4,6 +4,8 @@ export interface BKPtReceivable {
   customer_name: string;
 
   tgl?: string | null;
+  invoice_year?: number | null;
+  invoice_month?: number | null;
   no_order?: string | null;
   no_invoice?: string | null;
   faktur?: string | null;
@@ -26,6 +28,8 @@ export interface BKPtReceivablePayload {
   customer_name: string;
 
   tgl?: string | null;
+  invoice_year?: number | null;
+  invoice_month?: number | null;
   no_order?: string | null;
   no_invoice?: string | null;
   faktur?: string | null;

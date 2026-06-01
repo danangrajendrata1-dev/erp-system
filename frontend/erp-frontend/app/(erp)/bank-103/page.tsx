@@ -41,6 +41,8 @@ const MONTHS = [
 type BKPtCandidate = {
   id: number;
   tgl?: string | null;
+  invoice_year?: number | null;
+  invoice_month?: number | null;
   no_order?: string | null;
   no_invoice?: string | null;
   faktur?: string | null;
@@ -163,6 +165,20 @@ function getBKPtSaldo(item: BKPtCandidate) {
   const pph23 = toNumber(item.pph_psl_23);
 
   return Math.max(0, Math.round(debet - kredit - pph21 - pph23));
+}
+
+function getBKPtInvoicePeriod(item: BKPtCandidate) {
+  if (item.invoice_year && item.invoice_month) {
+    return `${MONTHS[item.invoice_month - 1]} ${item.invoice_year}`;
+  }
+
+  if (!item.tgl) return "";
+
+  const date = new Date(item.tgl);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 export default function Bank103Page() {
@@ -371,8 +387,14 @@ export default function Bank103Page() {
       setAutoApplyingId(id);
 
       const result = await autoApplyBank103ToBkpt(id);
+      const responseReason =
+        result && typeof result === "object" && "reason" in result
+          ? String((result as { reason?: unknown }).reason || "")
+          : "";
       const message =
-        result && typeof result === "object" && "message" in result
+        responseReason === "AMBIGUOUS_INVOICE_PERIOD"
+          ? "Auto BKPt dilewati karena nomor invoice sama ditemukan di lebih dari satu periode. Silakan pilih manual."
+          : result && typeof result === "object" && "message" in result
           ? String((result as { message?: unknown }).message || "")
           : "Proses auto BKPt selesai.";
 
@@ -907,13 +929,14 @@ export default function Bank103Page() {
               <table className="w-full min-w-[1000px] border-collapse text-sm">
                 <thead className="sticky top-0 bg-slate-100">
                   <tr className="text-left text-xs uppercase tracking-wide text-slate-600">
-                    <th className="border px-3 py-3">TGL</th>
+                    <th className="border px-3 py-3">Tgl Invoice</th>
                     <th className="border px-3 py-3">Customer</th>
                     <th className="border px-3 py-3">No Invoice</th>
+                    <th className="border px-3 py-3">Periode</th>
                     <th className="border px-3 py-3">No Order</th>
-                    <th className="border px-3 py-3 text-right">Debet</th>
+                    <th className="border px-3 py-3 text-right">Total Tagihan</th>
                     <th className="border px-3 py-3 text-right">Kredit</th>
-                    <th className="border px-3 py-3 text-right">Saldo</th>
+                    <th className="border px-3 py-3 text-right">Outstanding</th>
                     <th className="border px-3 py-3 text-right">
                       Alokasi
                     </th>
@@ -925,7 +948,7 @@ export default function Bank103Page() {
                   {bkptLoading ? (
                     <tr>
                       <td
-                        colSpan={9}
+                        colSpan={10}
                         className="border px-3 py-8 text-center text-slate-500"
                       >
                         Mengambil data BKPt...
@@ -934,7 +957,7 @@ export default function Bank103Page() {
                   ) : filteredBKPtCandidates.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={9}
+                        colSpan={10}
                         className="border px-3 py-8 text-center text-slate-500"
                       >
                         Tidak ada BKPt dengan saldo terbuka.
@@ -957,6 +980,10 @@ export default function Bank103Page() {
 
                           <td className="border px-3 py-2">
                             {item.no_invoice || "-"}
+                          </td>
+
+                          <td className="border px-3 py-2">
+                            {getBKPtInvoicePeriod(item) || "-"}
                           </td>
 
                           <td className="border px-3 py-2">

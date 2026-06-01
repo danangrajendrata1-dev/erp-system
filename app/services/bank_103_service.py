@@ -172,12 +172,12 @@ class Bank103Service:
 
     def _find_matching_bkpt(self, bank):
         if not self._is_available_bkpt_payment(bank):
-            return None
+            return {"status": "skipped", "reason": "BANK_NOT_ELIGIBLE", "bkpt": None}
 
         invoice_from_bank = self._normalize_match_text(bank.no_invoice)
 
         if not invoice_from_bank and not bank.keterangan:
-            return None
+            return {"status": "skipped", "reason": "NO_INVOICE_REFERENCE", "bkpt": None}
 
         bank_debet = self._to_decimal(bank.debet)
 
@@ -219,27 +219,54 @@ class Bank103Service:
         unique_matches = {item.id: item for item in matches}
 
         # Kalau kandidat lebih dari satu, jangan paksa auto.
-        if len(unique_matches) != 1:
-            return None
+        if len(unique_matches) > 1:
+            return {
+                "status": "skipped",
+                "reason": "AMBIGUOUS_INVOICE_PERIOD",
+                "bkpt": None,
+                "candidate_count": len(unique_matches),
+            }
 
-        return next(iter(unique_matches.values()))
+        if len(unique_matches) == 0:
+            return {"status": "skipped", "reason": "NO_MATCH", "bkpt": None}
+
+        return {
+            "status": "matched",
+            "reason": None,
+            "bkpt": next(iter(unique_matches.values())),
+        }
 
     def _auto_apply_to_matching_bkpt(self, bank):
-        matched_bkpt = self._find_matching_bkpt(bank)
+        match_result = self._find_matching_bkpt(bank)
+        matched_bkpt = match_result.get("bkpt")
 
         if not matched_bkpt:
-            return None
+            return match_result
 
-        return self.apply_to_bkpt(bank.id, matched_bkpt.id)
+        result = self.apply_to_bkpt(bank.id, matched_bkpt.id)
+        result["reason"] = None
+        return result
 
     def auto_apply_to_bkpt(self, bank_id: int):
         bank = self.get_by_id(bank_id)
         result = self._auto_apply_to_matching_bkpt(bank)
 
-        if not result:
+        if not result or result.get("status") == "skipped":
+            reason = result.get("reason") if isinstance(result, dict) else None
+            if reason == "AMBIGUOUS_INVOICE_PERIOD":
+                message = (
+                    "Auto BKPt dilewati karena nomor invoice sama ditemukan "
+                    "di lebih dari satu periode. Silakan pilih manual."
+                )
+            else:
+                message = (
+                    "Belum ada BKPt yang cocok secara otomatis untuk transaksi "
+                    "Bank 103 ini"
+                )
             return {
                 "status": "skipped",
-                "message": "Belum ada BKPt yang cocok secara otomatis untuk transaksi Bank 103 ini",
+                "reason": reason,
+                "message": message,
                 "bank_103": bank,
             }
 

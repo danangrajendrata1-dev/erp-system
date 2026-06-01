@@ -1,6 +1,6 @@
 import re
 
-from sqlalchemy import func
+from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
 from app.models.sales_103_model import Sales103
@@ -21,43 +21,63 @@ class Sales103Repository:
 
         return match.group(1), int(match.group(2))
 
-    def get_next_invoice_number(self, db: Session):
+    def get_next_invoice_number(
+        self,
+        db: Session,
+        invoice_date,
+    ):
         """
-        Membuat nomor Invoice 103 berikutnya saat user belum mengisi NO. INVOICE.
-        Format mengikuti data lama, contoh: LOI.0001, LOI.0002, dan seterusnya.
+        Membuat nomor Invoice 103 berikutnya per bulan.
+        Format tetap: LOI.0001, LOI.0002, dan seterusnya.
         """
+        if not invoice_date:
+            return "LOI.0001"
+
+        invoice_year = invoice_date.year
+        invoice_month = invoice_date.month
+        invoice_prefix = "LOI"
+        invoice_prefix_pattern = f"{invoice_prefix.lower()}.%"
 
         invoice_rows = (
             db.query(Sales103.no_invoice)
             .filter(Sales103.no_invoice.isnot(None))
+            .filter(func.lower(func.trim(Sales103.no_invoice)).like(invoice_prefix_pattern))
+            .filter(extract("year", Sales103.tgl) == invoice_year)
+            .filter(extract("month", Sales103.tgl) == invoice_month)
             .all()
         )
-
-        latest_invoice = (
-            db.query(Sales103.no_invoice)
-            .filter(Sales103.no_invoice.isnot(None))
-            .filter(func.trim(Sales103.no_invoice) != "")
-            .order_by(Sales103.id.desc())
-            .first()
-        )
-
-        prefix = "LOI"
-
-        if latest_invoice:
-            latest_prefix, _ = self._split_invoice_number(latest_invoice[0])
-
-            if latest_prefix:
-                prefix = latest_prefix
 
         max_number = 0
 
         for row in invoice_rows:
             row_prefix, row_number = self._split_invoice_number(row[0])
 
-            if row_prefix == prefix and row_number is not None:
+            if row_prefix == invoice_prefix and row_number is not None:
                 max_number = max(max_number, row_number)
 
-        return f"{prefix}.{max_number + 1:04d}"
+        return f"{invoice_prefix}.{max_number + 1:04d}"
+
+    def invoice_exists_in_period(
+        self,
+        db: Session,
+        invoice_number: str,
+        invoice_date,
+        exclude_id: int | None = None,
+    ):
+        if not invoice_number or not invoice_date:
+            return False
+
+        query = (
+            db.query(Sales103)
+            .filter(func.lower(func.trim(Sales103.no_invoice)) == invoice_number.strip().lower())
+            .filter(extract("year", Sales103.tgl) == invoice_date.year)
+            .filter(extract("month", Sales103.tgl) == invoice_date.month)
+        )
+
+        if exclude_id is not None:
+            query = query.filter(Sales103.id != exclude_id)
+
+        return query.first() is not None
 
     def _attach_bkorder_fields(self, sales_103: Sales103, bkorder: BKOrder | None):
         """

@@ -52,3 +52,7 @@ export interface Sales103Create {
 }
 
 export interface Sales103Update extends Sales103Create {}
+
+export interface NextSales103InvoiceResponse {
+  next_invoice: string;
+}

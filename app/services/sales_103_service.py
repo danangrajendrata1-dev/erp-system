@@ -67,11 +67,14 @@ class Sales103Service:
     def get_by_id(self, db: Session, sales_103_id: int):
         return self.repository.get_by_id(db, sales_103_id)
 
-    def get_invoice_number(self, db: Session, current_invoice):
+    def get_invoice_number(self, db: Session, current_invoice, invoice_date):
         if current_invoice and str(current_invoice).strip():
             return str(current_invoice).strip()
 
-        return self.repository.get_next_invoice_number(db)
+        return self.repository.get_next_invoice_number(db, invoice_date)
+
+    def get_next_invoice_number(self, db: Session, invoice_date):
+        return self.repository.get_next_invoice_number(db, invoice_date)
 
     def create(self, db: Session, data: Sales103Create):
         (
@@ -85,7 +88,7 @@ class Sales103Service:
 
         payload = data.model_copy(
             update={
-                "no_invoice": self.get_invoice_number(db, data.no_invoice),
+                "no_invoice": self.get_invoice_number(db, data.no_invoice, data.tgl),
                 "harga": harga,
                 "dpp": dpp,
                 "ppn_rate": ppn_rate,
@@ -170,7 +173,11 @@ class Sales103Service:
         payload = Sales103Update(
             tgl=merged_data.tgl,
             no_ord=merged_data.no_ord,
-            no_invoice=self.get_invoice_number(db, merged_data.no_invoice),
+            no_invoice=self.get_invoice_number(
+                db,
+                merged_data.no_invoice,
+                merged_data.tgl,
+            ),
             no_faktur=merged_data.no_faktur,
             langganan=merged_data.langganan,
             jenis_cetak=merged_data.jenis_cetak,

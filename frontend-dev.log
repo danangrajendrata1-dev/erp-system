@@ -1,0 +1,34 @@
+
+> erp-frontend@0.1.0 dev
+> next dev --hostname 127.0.0.1 --port 3000
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+- Environments: .env.local
+✓ Ready in 312ms
+Creating turbopack project { dir: 'C:\\erp_project\\frontend\\erp-frontend', testMode: true }
+
+ GET / 200 in 264ms (next.js: 129ms, application-code: 135ms)
+ GET / 200 in 44ms (next.js: 4ms, application-code: 41ms)
+ GET / 200 in 33ms (next.js: 4ms, application-code: 29ms)
+ GET / 200 in 36ms (next.js: 3ms, application-code: 33ms)
+ GET /dashboard 200 in 63ms (next.js: 32ms, application-code: 30ms)
+ GET /bkorder 200 in 44ms (next.js: 23ms, application-code: 21ms)
+ GET /sales-103 200 in 43ms (next.js: 24ms, application-code: 19ms)
+ GET /invoice-103 200 in 51ms (next.js: 27ms, application-code: 24ms)
+ GET /sales-103 200 in 18ms (next.js: 3ms, application-code: 15ms)
+ GET /bkorder 200 in 22ms (next.js: 2ms, application-code: 20ms)
+ GET / 200 in 14ms (next.js: 2ms, application-code: 11ms)
+✓ Compiled in 362ms
+ GET / 200 in 75ms (next.js: 50ms, application-code: 25ms)
+ GET /dashboard 200 in 41ms (next.js: 11ms, application-code: 30ms)
+ GET /sales-103 200 in 21ms (next.js: 6ms, application-code: 15ms)
+ GET / 200 in 19ms (next.js: 3ms, application-code: 16ms)
+✓ Compiled in 94ms
+ GET / 200 in 84ms (next.js: 55ms, application-code: 29ms)
+✓ Compiled in 43ms
+ GET / 200 in 80ms (next.js: 49ms, application-code: 31ms)
+ GET / 200 in 129ms (next.js: 3ms, application-code: 126ms)
+✓ Compiled in 40ms
+[?25h

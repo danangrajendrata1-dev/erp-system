@@ -26,6 +26,8 @@ def get_bkpt_receivables(
     month: Optional[int] = None,
     year: Optional[int] = None,
     no_invoice: Optional[str] = None,
+    invoice_year: Optional[int] = None,
+    invoice_month: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     return service.get_all(
@@ -34,6 +36,8 @@ def get_bkpt_receivables(
         month=month,
         year=year,
         no_invoice=no_invoice,
+        invoice_year=invoice_year,
+        invoice_month=invoice_month,
     )
 
 

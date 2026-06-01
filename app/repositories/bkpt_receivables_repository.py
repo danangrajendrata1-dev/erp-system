@@ -17,6 +17,8 @@ class BKPtReceivableRepository:
         month: int | None = None,
         year: int | None = None,
         no_invoice: str | None = None,
+        invoice_year: int | None = None,
+        invoice_month: int | None = None,
     ):
         query = db.query(BKPtReceivable)
 
@@ -31,6 +33,12 @@ class BKPtReceivableRepository:
 
         if year:
             query = query.filter(extract("year", BKPtReceivable.tgl) == year)
+
+        if invoice_year:
+            query = query.filter(BKPtReceivable.invoice_year == invoice_year)
+
+        if invoice_month:
+            query = query.filter(BKPtReceivable.invoice_month == invoice_month)
 
         return query.order_by(
             BKPtReceivable.customer_name.asc(),
