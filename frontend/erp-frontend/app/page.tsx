@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import axios from "axios";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { loginUser, registerUser } from "@/services/auth";
+import { getStoredToken, loginUser, registerUser } from "@/services/auth";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -15,6 +16,30 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const token = getStoredToken();
+
+    if (token) {
+      router.replace("/dashboard");
+    }
+  }, [router]);
+
+  function getLoginErrorMessage(error: unknown) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+
+      if (status === 401) {
+        return "Email atau password salah.";
+      }
+
+      if (!error.response) {
+        return "Tidak dapat terhubung ke server. Silakan coba lagi.";
+      }
+    }
+
+    return "Login gagal. Silakan coba lagi.";
+  }
+
   const handleSubmit = async () => {
     if (loading) return;
 
@@ -23,13 +48,21 @@ export default function AuthPage() {
       setError("");
 
       if (isLogin) {
-        const response = await loginUser(email, password);
+        let response;
+
+        try {
+          response = await loginUser(email, password);
+        } catch (error) {
+          console.error("LOGIN REQUEST ERROR", error);
+          setError(getLoginErrorMessage(error));
+          return;
+        }
 
         console.log("LOGIN RESPONSE PARSED", response);
 
         if (!response?.access_token) {
           console.error("LOGIN TOKEN MISSING", response);
-          setError("Login gagal. Token tidak diterima dari server.");
+          setError("Login gagal. Silakan coba lagi.");
           return;
         }
 
@@ -37,7 +70,12 @@ export default function AuthPage() {
         localStorage.setItem("user", JSON.stringify(response.user ?? null));
         window.dispatchEvent(new Event("storage"));
 
-        router.replace("/dashboard");
+        try {
+          router.replace("/dashboard");
+        } catch (error) {
+          console.error("LOGIN REDIRECT ERROR", error);
+          setError("Login gagal. Silakan coba lagi.");
+        }
         return;
       }
 
@@ -47,7 +85,7 @@ export default function AuthPage() {
       setIsLogin(true);
     } catch (err) {
       console.error("AUTH ERROR:", err);
-      setError("Proses gagal. Cek console/browser log dan response server.");
+      setError("Login gagal. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }
@@ -102,6 +140,7 @@ export default function AuthPage() {
 
         <button
           onClick={() => setIsLogin(!isLogin)}
+          disabled={loading}
           className="mt-4 text-sm text-blue-500"
         >
           {isLogin ? "Belum punya akun? Register" : "Sudah punya akun? Login"}

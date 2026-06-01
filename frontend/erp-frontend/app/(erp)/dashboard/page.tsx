@@ -1,7 +1,5 @@
 "use client";
 
-import useAuth from "@/hooks/useAuth";
-
 import {
   FileText,
   Package,
@@ -12,8 +10,6 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  useAuth();
-
   const cards = [
     { title: "Sales Order", value: "24", icon: FileText },
     { title: "Customers", value: "120", icon: Users },

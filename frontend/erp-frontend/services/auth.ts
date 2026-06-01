@@ -1,4 +1,4 @@
-import api from "./api";
+import api, { getToken } from "./api";
 
 type LoginResponse = {
   access_token?: string;
@@ -12,11 +12,7 @@ type LoginResponse = {
 };
 
 export function getStoredToken() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return localStorage.getItem("token");
+  return getToken();
 }
 
 export function clearAuthStorage() {

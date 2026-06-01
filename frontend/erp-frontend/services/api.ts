@@ -1,17 +1,22 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000",
 });
 
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
+export function getToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
 
-    if (token) {
-      config.headers = config.headers ?? {};
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  return localStorage.getItem("token");
+}
+
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = getToken();
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
   return config;
