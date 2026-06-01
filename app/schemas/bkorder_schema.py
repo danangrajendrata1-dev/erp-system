@@ -25,8 +25,8 @@ class BKOrderBase(BaseModel):
     delivery_completed_dates: List[Optional[str]] = Field(default_factory=list)
 
     # 14 kolom sesuai AC:AP Excel
-    partial_billing_quantities: List[Optional[float]] = Field(default_factory=list)
-    partial_billing_input_quantities: List[Optional[float]] = Field(default_factory=list)
+    partial_billing_quantities: Optional[List[Optional[float]]] = Field(default_factory=list)
+    partial_billing_input_quantities: Optional[List[Optional[float]]] = Field(default_factory=list)
 
     total_keping: Optional[Decimal] = Decimal("0")
     status: Optional[str] = "OPEN"
