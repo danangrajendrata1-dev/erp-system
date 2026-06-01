@@ -106,6 +106,35 @@ function convertKepingToDisplay(params: {
   return String(keping);
 }
 
+function getPartialInputValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  return toNumber(value);
+}
+
+function getPartialInputFallback(params: {
+  inputValue: unknown;
+  kepingValue: unknown;
+  unit?: string | null;
+  kepingPerRim: number;
+}) {
+  const { inputValue, kepingValue, unit, kepingPerRim } = params;
+
+  if (inputValue !== null && inputValue !== undefined && inputValue !== "") {
+    return getPartialInputValue(inputValue);
+  }
+
+  const fallback = convertKepingToDisplay({
+    value: kepingValue,
+    unit,
+    kepingPerRim,
+  });
+
+  return fallback === "" ? null : Number(fallback);
+}
+
 function formatDisplayValue(value: number, unit?: string | null) {
   if (!value || value <= 0) return "";
 
@@ -119,6 +148,10 @@ function normalizePayload(form: BKOrderPayload): BKOrderPayload {
     form.partial_billing_quantities,
     null
   ).map((value) => toNumber(value));
+  const partialInputs = normalizeArray<number | null | undefined>(
+    form.partial_billing_input_quantities,
+    null
+  ).map(getPartialInputValue);
 
   const totalKeping = partials.reduce<number>((sum, value) => {
     return sum + toNumber(value);
@@ -137,6 +170,7 @@ function normalizePayload(form: BKOrderPayload): BKOrderPayload {
       null
     ).map(normalizeStringDate),
     partial_billing_quantities: partials,
+    partial_billing_input_quantities: partialInputs,
     total_keping: totalKeping,
   };
 }
@@ -176,6 +210,12 @@ export default function EditPurchaseOrderPage() {
           price: toNumber(data.price) || null,
           delivery_completed_dates: normalizeArray(
             data.delivery_completed_dates?.map(toDateInput),
+            null
+          ),
+          partial_billing_input_quantities: normalizeArray(
+            data.partial_billing_input_quantities?.map((value) =>
+              getPartialInputValue(value)
+            ),
             null
           ),
           partial_billing_quantities: normalizeArray(
@@ -230,6 +270,52 @@ export default function EditPurchaseOrderPage() {
   const kepingPerRim = useMemo(() => {
     return getKepingPerRimFromForm(form, cuttingInfo);
   }, [form, cuttingInfo]);
+
+  useEffect(() => {
+    if (!form) return;
+
+    const existingInputs = normalizeArray(
+      form.partial_billing_input_quantities,
+      null
+    );
+
+    const hasStoredInput = existingInputs.some(
+      (value) => value !== null && value !== undefined
+    );
+
+    if (hasStoredInput) {
+      return;
+    }
+
+    setForm((prev) => {
+      if (!prev) return prev;
+
+      const fallbackInputs = normalizeArray(
+        prev.partial_billing_quantities,
+        null
+      ).map((value) =>
+        getPartialInputFallback({
+          inputValue: null,
+          kepingValue: value,
+          unit: prev.unit,
+          kepingPerRim,
+        })
+      );
+
+      const hasFallbackValue = fallbackInputs.some(
+        (value) => value !== null && value !== undefined
+      );
+
+      if (!hasFallbackValue) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        partial_billing_input_quantities: fallbackInputs,
+      };
+    });
+  }, [form, kepingPerRim]);
 
   const totalTerkirimDisplay = useMemo(() => {
     if (isRimUnit(form?.unit) && kepingPerRim > 0) {
@@ -314,6 +400,10 @@ export default function EditPurchaseOrderPage() {
       return {
         ...prev,
         partial_billing_quantities: next,
+        partial_billing_input_quantities: normalizeArray<number | null>(
+          prev.partial_billing_input_quantities ?? null,
+          null
+        ).map((item, itemIndex) => (itemIndex === index ? inputValue : item)),
         total_keping: totalKeping,
       };
     });
@@ -806,11 +896,7 @@ export default function EditPurchaseOrderPage() {
                 <input
                   type="number"
                   step="0.0001"
-                  value={convertKepingToDisplay({
-                    value: form.partial_billing_quantities?.[index],
-                    unit: form.unit,
-                    kepingPerRim,
-                  })}
+                  value={form.partial_billing_input_quantities?.[index] ?? ""}
                   onChange={(e) => updatePartialColumn(index, e.target.value)}
                   className="w-full rounded-lg border px-2 py-2 text-xs"
                   placeholder=""

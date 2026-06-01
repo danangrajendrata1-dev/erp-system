@@ -30,29 +30,30 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 from app.database.connection import Base
 
-from app.modules.users.user_model import User
+from app.models.user_model import User
 from app.models.customer_model import Customer
-from app.modules.supplier.supplier_model import Supplier
-from app.modules.purchasing.material_model import Material
-from app.modules.inventory.inventory_model import InventoryMovement
-from app.modules.sales.sales_order_model import (
+from app.models.supplier_model import Supplier
+from app.models.material_model import Material
+from app.models.inventory_model import InventoryMovement
+from app.models.sales_order_model import (
     SalesOrder,
     SalesOrderItem
 )
-from app.modules.production.production_model import (
-    ProductionOrder,
-    ProductionProgress
-)
-from app.modules.finance.cash_model import (
-    CashTransaction
-)
-from app.models.employee_model import (
-    Employee
-)
-from app.modules.payroll.payroll_model import (
+from app.models.bkorder_model import BKOrder
+from app.models.cash_model import CashTransaction
+from app.models.employee_model import Employee
+from app.models.payroll_model import (
     Attendance,
     Payroll
 )
+from app.models.material_receipt_model import MaterialReceipt
+from app.models.production_process_model import ProductionProcess
+from app.models.shipment_model import Shipment
+from app.models.invoice_model import Invoice
+from app.models.sales_103_model import Sales103
+from app.models.bkpt_receivables_model import BKPtReceivable
+from app.models.bank_103_model import Bank103
+from app.models.invoice_103_metadata_model import Invoice103Metadata
 
 target_metadata = Base.metadata
 

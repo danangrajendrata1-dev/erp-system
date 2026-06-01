@@ -31,6 +31,7 @@ class BKOrder(Base):
 
     # AC:AP di Excel. Disimpan JSON array 14 item angka.
     partial_billing_quantities = Column(JSONB, nullable=True, default=list)  # TAGIHAN PARSIAL (Keping)
+    partial_billing_input_quantities = Column(JSONB, nullable=True, default=list)  # TAGIHAN PARSIAL sesuai input user
 
     total_keping = Column(Numeric(18, 2), nullable=True, default=0)  # TOTAL (Keping)
     status = Column(String(50), nullable=True, default="OPEN")  # STATUS

@@ -24,6 +24,7 @@ export interface BKOrder {
 
   delivery_completed_dates?: NullableDate[] | null;
   partial_billing_quantities?: NullableNumber[] | null;
+  partial_billing_input_quantities?: NullableNumber[] | null;
   total_keping?: NullableNumber;
 
   status?: string | null;
@@ -53,6 +54,7 @@ export interface BKOrderPayload {
 
   delivery_completed_dates?: NullableDate[] | null;
   partial_billing_quantities?: NullableNumber[] | null;
+  partial_billing_input_quantities?: NullableNumber[] | null;
   total_keping?: NullableNumber;
 
   status?: string | null;

@@ -26,6 +26,7 @@ class BKOrderBase(BaseModel):
 
     # 14 kolom sesuai AC:AP Excel
     partial_billing_quantities: List[Optional[float]] = Field(default_factory=list)
+    partial_billing_input_quantities: List[Optional[float]] = Field(default_factory=list)
 
     total_keping: Optional[Decimal] = Decimal("0")
     status: Optional[str] = "OPEN"

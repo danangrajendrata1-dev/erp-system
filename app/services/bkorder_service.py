@@ -31,6 +31,22 @@ def _normalize_numbers(values: Optional[List[Optional[float]]]) -> List[float]:
     return normalized
 
 
+def _normalize_optional_numbers(values: Optional[List[Optional[float]]]) -> List[Optional[float]]:
+    values = values or []
+    normalized: List[Optional[float]] = []
+    for value in values[:EXCEL_REPEAT_COLUMNS]:
+        if value in (None, ""):
+            normalized.append(None)
+            continue
+        try:
+            normalized.append(float(value))
+        except (TypeError, ValueError):
+            normalized.append(None)
+    while len(normalized) < EXCEL_REPEAT_COLUMNS:
+        normalized.append(None)
+    return normalized
+
+
 def _auto_total_keping(values: List[float]) -> Decimal:
     return Decimal(str(sum(values)))
 
@@ -47,6 +63,9 @@ class BKOrderService:
         payload = data.model_dump()
         payload["delivery_completed_dates"] = _normalize_dates(payload.get("delivery_completed_dates"))
         payload["partial_billing_quantities"] = _normalize_numbers(payload.get("partial_billing_quantities"))
+        payload["partial_billing_input_quantities"] = _normalize_optional_numbers(
+            payload.get("partial_billing_input_quantities")
+        )
 
         if payload.get("total_keping") in (None, 0, Decimal("0"), ""):
             payload["total_keping"] = _auto_total_keping(payload["partial_billing_quantities"])
@@ -66,6 +85,11 @@ class BKOrderService:
             payload["partial_billing_quantities"] = _normalize_numbers(payload.get("partial_billing_quantities"))
             if payload.get("total_keping") in (None, 0, Decimal("0"), ""):
                 payload["total_keping"] = _auto_total_keping(payload["partial_billing_quantities"])
+
+        if "partial_billing_input_quantities" in payload:
+            payload["partial_billing_input_quantities"] = _normalize_optional_numbers(
+                payload.get("partial_billing_input_quantities")
+            )
 
         if "price" in payload:
             payload["price"] = _round_money(payload.get("price"))

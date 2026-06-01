@@ -33,6 +33,7 @@ const emptyForm: BKOrderPayload = {
   price: null,
   delivery_completed_dates: Array(14).fill(null),
   partial_billing_quantities: Array(14).fill(null),
+  partial_billing_input_quantities: Array(14).fill(null),
   total_keping: null,
   status: "PO_MASUK",
   notes: "",
@@ -123,6 +124,14 @@ function convertKepingToDisplay(params: {
   return String(keping);
 }
 
+function getPartialInputValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  return toNumber(value);
+}
+
 function formatDisplayValue(value: number, unit?: string | null) {
   if (!value || value <= 0) return "";
 
@@ -136,6 +145,10 @@ function normalizePayload(form: BKOrderPayload): BKOrderPayload {
     form.partial_billing_quantities ?? null,
     null
   ).map((value) => toNumber(value));
+  const partialInputs = normalizeArray<number | null>(
+    form.partial_billing_input_quantities ?? null,
+    null
+  ).map(getPartialInputValue);
 
   const totalKeping = partials.reduce<number>((sum, value) => {
     return sum + toNumber(value);
@@ -154,6 +167,7 @@ function normalizePayload(form: BKOrderPayload): BKOrderPayload {
       null
     ).map(normalizeStringDate),
     partial_billing_quantities: partials,
+    partial_billing_input_quantities: partialInputs,
     total_keping: totalKeping,
   };
 }
@@ -197,6 +211,7 @@ function CreatePurchaseOrderContent() {
           price: null,
           delivery_completed_dates: Array(14).fill(null),
           partial_billing_quantities: Array(14).fill(null),
+          partial_billing_input_quantities: Array(14).fill(null),
           total_keping: null,
           status: data.status || "PO_MASUK",
           notes: "",
@@ -319,6 +334,10 @@ function CreatePurchaseOrderContent() {
       return {
         ...prev,
         partial_billing_quantities: next,
+        partial_billing_input_quantities: normalizeArray<number | null>(
+          prev.partial_billing_input_quantities ?? null,
+          null
+        ).map((item, itemIndex) => (itemIndex === index ? inputValue : item)),
         total_keping: totalKeping,
       };
     });
@@ -795,11 +814,7 @@ function CreatePurchaseOrderContent() {
                 <input
                   type="number"
                   step="0.0001"
-                  value={convertKepingToDisplay({
-                    value: form.partial_billing_quantities?.[index],
-                    unit: form.unit,
-                    kepingPerRim,
-                  })}
+                  value={form.partial_billing_input_quantities?.[index] ?? ""}
                   onChange={(e) => updatePartialColumn(index, e.target.value)}
                   className="w-full rounded-lg border px-2 py-2 text-xs"
                 />

@@ -39,6 +39,39 @@ function normalizeText(value: unknown) {
   return String(value || "").trim().toLowerCase();
 }
 
+function isRimUnit(unit?: string | null) {
+  return normalizeText(unit).includes("rim");
+}
+
+function getKepingPerRim(order: BKOrder) {
+  const quantity = toNumber(order.quantity);
+  const rim = toNumber(order.rim);
+
+  if (quantity > 0 && rim > 0) {
+    return quantity / rim;
+  }
+
+  return 0;
+}
+
+function convertStoredKepingToDisplay(order: BKOrder, kepingValue: unknown) {
+  const keping = toNumber(kepingValue);
+
+  if (keping <= 0) {
+    return 0;
+  }
+
+  if (isRimUnit(order.unit)) {
+    const kepingPerRim = getKepingPerRim(order);
+
+    if (kepingPerRim > 0) {
+      return Number((keping / kepingPerRim).toFixed(4));
+    }
+  }
+
+  return keping;
+}
+
 function getDefaultBKOrderQuantity(order: BKOrder) {
   return toNumber(order.rim) || toNumber(order.quantity);
 }
@@ -46,15 +79,22 @@ function getDefaultBKOrderQuantity(order: BKOrder) {
 function getPartialOptions(order: BKOrder | null) {
   if (!order) return [];
 
-  const quantities = order.partial_billing_quantities || [];
+  const inputQuantities = order.partial_billing_input_quantities || [];
+  const storedQuantities = order.partial_billing_quantities || [];
   const dates = order.delivery_completed_dates || [];
 
-  return quantities
-    .map((quantity, index) => ({
-      index,
-      quantity: toNumber(quantity),
-      deliveryDate: dates[index] || null,
-    }))
+  return storedQuantities
+    .map((quantity, index) => {
+      const inputQuantity = inputQuantities[index];
+      return {
+        index,
+        quantity:
+          inputQuantity !== null && inputQuantity !== undefined
+            ? toNumber(inputQuantity)
+            : convertStoredKepingToDisplay(order, quantity),
+        deliveryDate: dates[index] || null,
+      };
+    })
     .filter((item) => item.quantity > 0 || item.deliveryDate);
 }
 
