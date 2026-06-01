@@ -15,7 +15,6 @@ import {
   X,
 } from "lucide-react";
 
-import api from "@/services/api";
 import { Bank103 } from "@/types/bank103";
 import {
   allocateBank103ToMultipleBkpt,
@@ -207,11 +206,13 @@ export default function Bank103Page() {
     const available = data.filter((item: BKPtCandidate) => getBKPtSaldo(item) > 0);
 
     setBkptCandidates(available);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
     alert(
-      error?.response?.data?.detail ||
-        error?.response?.data?.message ||
+      (error as { response?: { data?: { detail?: string; message?: string } } })
+        ?.response?.data?.detail ||
+        (error as { response?: { data?: { detail?: string; message?: string } } })
+          ?.response?.data?.message ||
         "Gagal mengambil data BKPt."
     );
   } finally {
@@ -377,10 +378,11 @@ export default function Bank103Page() {
 
       alert(message);
       await loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
       alert(
-        error?.response?.data?.detail ||
+        (error as { response?: { data?: { detail?: string } } })
+          ?.response?.data?.detail ||
           "Gagal mencocokkan transaksi Bank 103 ke BKPt."
       );
     } finally {
@@ -464,10 +466,11 @@ export default function Bank103Page() {
       alert(message);
       closeAllocationModal();
       await loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
       alert(
-        error?.response?.data?.detail ||
+        (error as { response?: { data?: { detail?: string } } })
+          ?.response?.data?.detail ||
           "Gagal menyimpan alokasi pembayaran BKPt."
       );
     } finally {
