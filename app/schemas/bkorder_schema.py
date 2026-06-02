@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -47,3 +47,46 @@ class BKOrderResponse(BKOrderBase):
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class BKOrderImportRow(BaseModel):
+    row_number: int
+    data: dict[str, Any]
+    errors: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+    is_valid: bool = True
+    is_header_row: bool = False
+
+
+class BKOrderImportGroup(BaseModel):
+    order_number: Optional[str] = None
+    customer_name: Optional[str] = None
+    order_date: Optional[str] = None
+    po_date: Optional[str] = None
+    do_number: Optional[str] = None
+    delivery_date: Optional[str] = None
+    row_count: int = 0
+    valid_count: int = 0
+    error_count: int = 0
+    duplicate_count: int = 0
+    rows: List[BKOrderImportRow] = Field(default_factory=list)
+
+
+class BKOrderImportPreviewResponse(BaseModel):
+    groups: List[BKOrderImportGroup]
+    rows: List[BKOrderImportRow]
+    valid_count: int
+    error_count: int
+    duplicate_count: int
+
+
+class BKOrderImportCommitRequest(BaseModel):
+    rows: List[dict[str, Any]]
+
+
+class BKOrderImportCommitResponse(BaseModel):
+    success: bool = True
+    success_count: int
+    failed_count: int
+    duplicate_count: int
+    errors: List[dict[str, Any]] = Field(default_factory=list)

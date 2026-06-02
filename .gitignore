@@ -1,12 +1,50 @@
+# Python env/cache
 venv/
+.venv/
+env/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env
 .env
+.env.local
+
+# Frontend dependencies/build/cache
 frontend/erp-frontend/node_modules/
 frontend/erp-frontend/.next/
-.env.local
+frontend/erp-frontend/.turbo/
+frontend/erp-frontend/out/
+frontend/erp-frontend/dist/
+frontend/erp-frontend/build/
+frontend/erp-frontend/.vercel/
 
 # Local dev server logs
 backend-dev.log
 backend-dev.err.log
 frontend/erp-frontend/next-dev.log
 frontend/erp-frontend/next-dev.err.log
+
+# General logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local temp/database
+*.sqlite
+*.db
+tmp/
+temp/

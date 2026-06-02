@@ -1,11 +1,14 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
 from app.schemas.bkorder_schema import (
     BKOrderCreate,
+    BKOrderImportCommitRequest,
+    BKOrderImportCommitResponse,
+    BKOrderImportPreviewResponse,
     BKOrderResponse,
     BKOrderUpdate,
 )
@@ -31,6 +34,23 @@ def get_bkorders(
         month=month,
         year=year,
     )
+
+
+@router.post("/import/preview", response_model=BKOrderImportPreviewResponse)
+async def preview_bkorder_import(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    content = await file.read()
+    return BKOrderService(db).preview_import(content, file.filename or "")
+
+
+@router.post("/import/commit", response_model=BKOrderImportCommitResponse)
+def commit_bkorder_import(
+    payload: BKOrderImportCommitRequest,
+    db: Session = Depends(get_db),
+):
+    return BKOrderService(db).commit_import(payload.rows)
 
 
 @router.post("/", response_model=BKOrderResponse)

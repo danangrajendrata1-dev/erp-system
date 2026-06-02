@@ -43,8 +43,8 @@ class BKOrderRepository:
             query = query.filter(extract("year", BKOrder.order_date) == year)
 
         return query.order_by(
-            BKOrder.order_date.asc().nullslast(),
-            BKOrder.id.asc(),
+            BKOrder.order_date.desc().nullslast(),
+            BKOrder.id.desc(),
         ).all()
 
     def get_by_id(self, bkorder_id: int):
@@ -54,12 +54,34 @@ class BKOrderRepository:
             .first()
         )
 
+    def get_by_order_number(self, order_number: str):
+        if not order_number:
+            return None
+        return (
+            self.db.query(BKOrder)
+            .filter(BKOrder.order_number == order_number)
+            .first()
+        )
+
     def create(self, data: BKOrderCreate):
         obj = BKOrder(**data.model_dump())
         self.db.add(obj)
         self.db.commit()
         self.db.refresh(obj)
         return obj
+
+    def bulk_create(self, items):
+        objects = []
+
+        for item in items:
+            obj = BKOrder(**item)
+            self.db.add(obj)
+            self.db.flush()
+            self.db.refresh(obj)
+            objects.append(obj)
+
+        self.db.commit()
+        return objects
 
     def update(self, bkorder_id: int, data: BKOrderUpdate):
         obj = self.get_by_id(bkorder_id)
