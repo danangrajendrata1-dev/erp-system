@@ -64,7 +64,7 @@ origins = [
     "http://localhost:3001",
     "http://127.0.0.1:3001",
     "https://erp-system-ten-jade.vercel.app",
-    "https://erp-system-production-7804.up.railway.app",
+    "https://erp-backend-28948558846.asia-southeast2.run.app",
 ]
 
 app.add_middleware(
